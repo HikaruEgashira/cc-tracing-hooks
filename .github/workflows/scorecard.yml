@@ -18,8 +18,6 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - uses: ossf/scorecard-action@v2.4.0
         with:
