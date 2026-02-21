@@ -345,8 +345,6 @@ def main() -> None:
     p_status = sub.add_parser("status", help="Show current status")
     _add_scope_flags(p_status)
     _add_tool_flag(p_status)
-    p_status.add_argument("--detailed", action="store_true",
-                          help="Show detailed status for each scope")
 
     p_doctor = sub.add_parser("doctor", help="Check and fix configuration issues")
     _add_scope_flags(p_doctor)
