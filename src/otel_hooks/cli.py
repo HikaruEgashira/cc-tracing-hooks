@@ -93,11 +93,25 @@ def _resolve_scope(args: argparse.Namespace, tool_cfg: ToolConfig | None = None)
 
 
 def _resolve_provider(args: argparse.Namespace) -> str:
+    """Resolve a single provider name (for non-enable commands)."""
     provider = getattr(args, "provider", None)
+    if isinstance(provider, list):
+        return provider[0]
     if provider:
         return provider
 
     return _select("Which provider?", PROVIDERS, "--provider")
+
+
+def _resolve_providers(args: argparse.Namespace) -> list[str]:
+    """Resolve one or more provider names (for enable command)."""
+    provider = getattr(args, "provider", None)
+    if isinstance(provider, list):
+        return provider
+    if provider:
+        return [provider]
+
+    return [_select("Which provider?", PROVIDERS, "--provider")]
 
 
 def _clone_args(args: argparse.Namespace, **overrides: object) -> argparse.Namespace:
@@ -207,30 +221,37 @@ def _enable_codex(args: argparse.Namespace) -> int:
     return 0
 
 
+def _hook_command_for_provider(provider: str) -> str:
+    return f"otel-hooks hook --provider {provider}"
+
+
 def _enable_one(
     tool_name: str,
     args: argparse.Namespace,
     *,
-    provider: str,
+    providers: list[str],
     show_status: bool,
 ) -> int:
     if tool_name == "codex":
-        return _enable_codex(_clone_args(args, provider=provider))
+        return _enable_codex(_clone_args(args, provider=providers[0]))
 
     tool_cfg = get_tool(tool_name)
     scope = _resolve_scope(args, tool_cfg)
     config_scope = Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL
 
-    def _register_hook() -> None:
+    def _register_hooks() -> None:
         tool_settings = tool_cfg.load_settings(scope)
-        tool_settings = tool_cfg.register_hook(tool_settings)
+        for prov in providers:
+            cmd = _hook_command_for_provider(prov)
+            tool_settings = tool_cfg.register_hook(tool_settings, command=cmd)
         tool_cfg.save_settings(tool_settings, scope)
 
+    label = ", ".join(providers)
     if show_status:
-        with console.status(f"Enabling {tool_name} ({scope.value}, provider={provider})..."):
-            _register_hook()
+        with console.status(f"Enabling {tool_name} ({scope.value}, provider={label})..."):
+            _register_hooks()
     else:
-        _register_hook()
+        _register_hooks()
 
     console.print(f"[green]Enabled.[/green] Hook: {tool_cfg.settings_path(scope)}, Config: {cfg.config_path(config_scope)}")
     return 0
@@ -238,8 +259,10 @@ def _enable_one(
 
 def cmd_enable(args: argparse.Namespace) -> int:
     tools = _resolve_tools(args)
-    provider = _resolve_provider(args)
-    resolved_args = _clone_args(args, provider=provider)
+    providers = _resolve_providers(args)
+
+    # Write config for the first provider (primary)
+    resolved_args = _clone_args(args, provider=providers[0])
 
     config_scopes: set[Scope] = set()
     for tool_name in tools:
@@ -249,21 +272,22 @@ def cmd_enable(args: argparse.Namespace) -> int:
         scope = _resolve_scope(resolved_args, tool_cfg)
         config_scopes.add(Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL)
 
-    for config_scope in (Scope.GLOBAL, Scope.PROJECT):
-        if config_scope not in config_scopes:
-            continue
-        _write_provider_config_for_scope(
-            provider=provider,
-            config_scope=config_scope,
-            skip_project_secrets=True,
-        )
+    for provider in providers:
+        for config_scope in (Scope.GLOBAL, Scope.PROJECT):
+            if config_scope not in config_scopes:
+                continue
+            _write_provider_config_for_scope(
+                provider=provider,
+                config_scope=config_scope,
+                skip_project_secrets=True,
+            )
 
     return _run_tool_actions(
         tools,
         lambda tool_name: _enable_one(
             tool_name,
             resolved_args,
-            provider=provider,
+            providers=providers,
             show_status=len(tools) == 1,
         ),
         failure_label="enable",
@@ -470,7 +494,7 @@ def main() -> None:
     p_enable = sub.add_parser("enable", help="Enable tracing hooks")
     _add_scope_flags(p_enable)
     _add_tool_flag(p_enable)
-    p_enable.add_argument("--provider", choices=PROVIDERS, help="Provider to use")
+    p_enable.add_argument("--provider", choices=PROVIDERS, nargs="+", help="Provider(s) to use")
 
     p_disable = sub.add_parser("disable", help="Disable tracing hooks")
     _add_scope_flags(p_disable)
@@ -488,6 +512,7 @@ def main() -> None:
 
     p_hook = sub.add_parser("hook", help="Run the tracing hook (called by AI tools)")
     _add_tool_flag(p_hook)
+    p_hook.add_argument("--provider", choices=PROVIDERS, help="Provider to use for this hook invocation")
 
     sub.add_parser("version", help="Show version")
 

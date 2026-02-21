@@ -57,15 +57,15 @@ class ClineConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         return HOOK_COMMAND in settings.get("_script", "")
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
-        if self.is_hook_registered(settings):
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
+        cmd = command or HOOK_COMMAND
+        if cmd in settings.get("_script", ""):
             return settings
         existing = settings.get("_script", "")
-        if existing and HOOK_COMMAND not in existing:
-            # Append to existing script
-            settings["_script"] = existing.rstrip("\n") + f"\n{HOOK_COMMAND}\n"
+        if existing and cmd not in existing:
+            settings["_script"] = existing.rstrip("\n") + f"\n{cmd}\n"
         else:
-            settings["_script"] = f"#!/bin/sh\n# otel-hooks: emit tracing data on task completion\n{HOOK_COMMAND}\n"
+            settings["_script"] = f"#!/bin/sh\n# otel-hooks: emit tracing data on task completion\n{cmd}\n"
         return settings
 
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:

@@ -44,15 +44,16 @@ class GeminiConfig:
                     return True
         return False
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
+        cmd = command or HOOK_COMMAND
         hooks = settings.setdefault("hooks", {})
         session_end = hooks.setdefault("SessionEnd", [])
         for group in session_end:
             for hook in group.get("hooks", []):
-                if HOOK_COMMAND in hook.get("command", ""):
+                if cmd in hook.get("command", ""):
                     return settings
         session_end.append({
-            "hooks": [{"type": "command", "command": HOOK_COMMAND}],
+            "hooks": [{"type": "command", "command": cmd}],
         })
         return settings
 

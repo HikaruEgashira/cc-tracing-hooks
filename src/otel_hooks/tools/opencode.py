@@ -224,7 +224,7 @@ class OpenCodeConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         return PLUGIN_MARKER in settings.get("_script", "")
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
         settings["_script"] = PLUGIN_SCRIPT
         return settings
 

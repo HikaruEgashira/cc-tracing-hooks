@@ -43,14 +43,15 @@ class ClaudeConfig:
                     return True
         return False
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
+        cmd = command or HOOK_COMMAND
         hooks = settings.setdefault("hooks", {})
         stop = hooks.setdefault("Stop", [])
         for group in stop:
             for hook in group.get("hooks", []):
-                if HOOK_COMMAND in hook.get("command", ""):
+                if cmd in hook.get("command", ""):
                     return settings
-        stop.append({"hooks": [{"type": "command", "command": HOOK_COMMAND}]})
+        stop.append({"hooks": [{"type": "command", "command": cmd}]})
         return settings
 
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:

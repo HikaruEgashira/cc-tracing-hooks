@@ -31,7 +31,7 @@ class _StubTool:
         self.saved.append((settings, scope))
         self._registered = bool(settings.get("registered", False))
 
-    def register_hook(self, settings: dict[str, object]) -> dict[str, object]:
+    def register_hook(self, settings: dict[str, object], command: str | None = None) -> dict[str, object]:
         self.register_called += 1
         out = dict(settings)
         out["registered"] = True

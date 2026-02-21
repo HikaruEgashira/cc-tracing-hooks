@@ -203,6 +203,17 @@ def run_hook(
             pass
 
 
+def _parse_provider_flag() -> str | None:
+    """Extract --provider <name> from sys.argv without interfering with stdin."""
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--provider" and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--provider="):
+            return arg.split("=", 1)[1]
+    return None
+
+
 def main() -> int:
     try:
         from otel_hooks.config import load_config
@@ -210,6 +221,11 @@ def main() -> int:
         config = load_config()
     except Exception:
         config = {}
+
+    provider_override = _parse_provider_flag()
+    if provider_override:
+        config["provider"] = provider_override
+
     payload = read_hook_payload()
     return run_hook(payload, config)
 

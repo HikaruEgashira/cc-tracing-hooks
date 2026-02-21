@@ -53,21 +53,23 @@ class CopilotConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         hooks = settings.get("hooks", {})
         return all(
-            any(HOOK_COMMAND in hook.get("bash", "") for hook in hooks.get(event_name, []))
+            any("otel-hooks hook" in hook.get("bash", "") for hook in hooks.get(event_name, []))
             for event_name in _HOOK_EVENTS
         )
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
+        base_cmd = command or "otel-hooks hook"
+        cmd = f"OTEL_HOOKS_SOURCE_TOOL=copilot {base_cmd}"
         settings.setdefault("version", 1)
         hooks = settings.setdefault("hooks", {})
         for event_name in _HOOK_EVENTS:
             group = hooks.setdefault(event_name, [])
-            if any(HOOK_COMMAND in hook.get("bash", "") for hook in group):
+            if any("otel-hooks hook" in hook.get("bash", "") for hook in group):
                 continue
             group.append(
                 {
                     "type": "command",
-                    "bash": HOOK_COMMAND,
+                    "bash": cmd,
                     "comment": "otel-hooks: emit observability data",
                 }
             )
@@ -80,7 +82,7 @@ class CopilotConfig:
             if not group:
                 continue
             hooks[event_name] = [
-                hook for hook in group if HOOK_COMMAND not in hook.get("bash", "")
+                hook for hook in group if "otel-hooks hook" not in hook.get("bash", "")
             ]
             if not hooks[event_name]:
                 del hooks[event_name]

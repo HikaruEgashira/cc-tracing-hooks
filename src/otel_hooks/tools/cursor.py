@@ -35,12 +35,13 @@ class CursorConfig:
         stop_hooks = settings.get("hooks", {}).get("stop", [])
         return any(HOOK_COMMAND in h.get("command", "") for h in stop_hooks)
 
-    def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
+    def register_hook(self, settings: Dict[str, Any], command: str | None = None) -> Dict[str, Any]:
+        cmd = command or HOOK_COMMAND
         hooks = settings.setdefault("hooks", {})
         stop = hooks.setdefault("stop", [])
-        if any(HOOK_COMMAND in h.get("command", "") for h in stop):
+        if any(cmd in h.get("command", "") for h in stop):
             return settings
-        stop.append({"type": "command", "command": HOOK_COMMAND})
+        stop.append({"type": "command", "command": cmd})
         return settings
 
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
