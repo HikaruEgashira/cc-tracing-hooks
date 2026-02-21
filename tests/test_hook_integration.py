@@ -38,7 +38,12 @@ class _StubProvider:
 
 
 class _FailingProvider(_StubProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.emit_attempts = 0
+
     def emit_turn(self, session_id: str, turn_num: int, turn, transcript_path: Path | None, source_tool: str = "") -> None:
+        self.emit_attempts += 1
         raise RuntimeError("emit failed")
 
 
@@ -203,6 +208,57 @@ class HookIntegrationTest(unittest.TestCase):
             saved = next(iter(state.values()))
             # 送信失敗時は再送可能性のため turn_count を進めない
             self.assertEqual(saved["turn_count"], 0)
+            self.assertEqual(saved["offset"], 0)
+            self.assertEqual(saved["buffer"], "")
+
+    def test_run_hook_retries_same_turn_when_emit_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            transcript = root / "session.jsonl"
+            transcript.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "type": "user",
+                                "message": {
+                                    "role": "user",
+                                    "content": [{"type": "text", "text": "hello"}],
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "assistant",
+                                "message": {
+                                    "id": "a1",
+                                    "role": "assistant",
+                                    "model": "gpt-5",
+                                    "content": [{"type": "text", "text": "world"}],
+                                },
+                            }
+                        ),
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            payload = {"sessionId": "s-1", "transcriptPath": str(transcript)}
+            config = {
+                "enabled": True,
+                "provider": "langfuse",
+                "debug": False,
+                "state_dir": str(root / "state"),
+            }
+            provider = _FailingProvider()
+
+            rc1 = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
+            rc2 = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
+
+            self.assertEqual(rc1, 0)
+            self.assertEqual(rc2, 0)
+            self.assertEqual(provider.emit_attempts, 2)
 
     def test_run_hook_parallel_calls_do_not_cross_state_paths(self) -> None:
         with tempfile.TemporaryDirectory() as td:

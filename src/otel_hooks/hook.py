@@ -136,6 +136,9 @@ def run_hook(
             state = load_state(runtime_state_paths.state_file)
             key = state_key(event.session_id, str(event.transcript_path))
             ss = load_session_state(state, key)
+            prev_offset = ss.offset
+            prev_buffer = ss.buffer
+            prev_turn_count = ss.turn_count
 
             lines, ss = read_new_jsonl_lines(event.transcript_path, ss)
             if not lines:
@@ -150,6 +153,7 @@ def run_hook(
                 save_state(state, runtime_state_paths.state_file)
                 return 0
 
+            emit_failed = False
             for turn in turns:
                 turn_num = ss.turn_count + emitted + 1
                 try:
@@ -162,10 +166,17 @@ def run_hook(
                     )
                 except Exception as e:
                     debug(f"emit_turn failed: {e}")
-                    continue
+                    emit_failed = True
+                    break
                 emitted += 1
 
-            ss.turn_count += emitted
+            if emit_failed:
+                # Keep read position and counters unchanged so the same input can be retried.
+                ss.offset = prev_offset
+                ss.buffer = prev_buffer
+                ss.turn_count = prev_turn_count
+            else:
+                ss.turn_count += emitted
             write_session_state(state, key, ss)
             save_state(state, runtime_state_paths.state_file)
 
