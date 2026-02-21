@@ -1,6 +1,6 @@
 [project]
 name = "cc-tracing-hooks"
-version = "0.1.0"
+version = "0.2.0"
 description = "Claude Code tracing hooks for Langfuse observability"
 requires-python = ">=3.12"
 dependencies = ["langfuse"]
