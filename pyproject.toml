@@ -4,7 +4,9 @@ version = "0.5.0"
 description = "AI coding tools tracing hooks for observability (Langfuse, OTLP, and more)"
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "tomli-w>=1.2.0",
+]
 
 [project.optional-dependencies]
 langfuse = ["langfuse"]

@@ -3,12 +3,19 @@
 Reference:
   - https://github.com/openai/codex/blob/main/docs/config.md
   - https://developers.openai.com/codex/config-reference
+
+Codex [otel] schema (from config.schema.json):
+  exporter is a tagged enum (OtelExporterKind):
+    - "none" | "statsig"
+    - { "otlp-http": { endpoint, headers: {k: v}, ... } }
+    - { "otlp-grpc": { endpoint, headers: {k: v}, ... } }
 """
 
 import base64
-import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+import tomli_w
 
 from . import Scope, register_tool
 
@@ -22,39 +29,22 @@ def _read_toml(path: Path) -> Dict[str, Any]:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
-def _dump_toml(data: Dict[str, Any]) -> str:
-    """Serialize a simple dict to TOML (flat keys + one level of tables)."""
-    lines: list[str] = []
-    # Top-level scalar keys first
-    for k, v in data.items():
-        if not isinstance(v, dict):
-            lines.append(f"{k} = {_toml_value(v)}")
-    # Then table sections
-    for k, v in data.items():
-        if isinstance(v, dict):
-            lines.append(f"\n[{k}]")
-            for sk, sv in v.items():
-                lines.append(f"{sk} = {_toml_value(sv)}")
-    return "\n".join(lines) + "\n"
-
-
-def _toml_value(v: Any) -> str:
-    if isinstance(v, str):
-        return f'"{v}"'
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, int):
-        return str(v)
-    if isinstance(v, float):
-        return str(v)
-    return f'"{v}"'
-
-
 def _write_toml(data: Dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(_dump_toml(data), encoding="utf-8")
+    tmp.write_bytes(tomli_w.dumps(data).encode("utf-8"))
     tmp.replace(path)
+
+
+def _parse_headers(raw: str) -> Dict[str, str]:
+    """Parse 'Key=Value' or 'Key=Value,Key2=Value2' into a dict."""
+    headers: Dict[str, str] = {}
+    for part in raw.split(","):
+        part = part.strip()
+        if "=" in part:
+            k, v = part.split("=", 1)
+            headers[k.strip()] = v.strip()
+    return headers
 
 
 def _langfuse_otlp_endpoint(base_url: str) -> str:
@@ -64,6 +54,14 @@ def _langfuse_otlp_endpoint(base_url: str) -> str:
 def _langfuse_auth_header(public_key: str, secret_key: str) -> str:
     creds = base64.b64encode(f"{public_key}:{secret_key}".encode()).decode()
     return f"Basic {creds}"
+
+
+def _get_exporter_config(settings: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Extract the otlp-http exporter config from the nested structure."""
+    exporter = settings.get("otel", {}).get("exporter", {})
+    if isinstance(exporter, dict):
+        return exporter.get("otlp-http") or exporter.get("otlp-grpc")
+    return None
 
 
 @register_tool
@@ -85,27 +83,39 @@ class CodexConfig:
         _write_toml(settings, CONFIG_PATH)
 
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
-        # Codex uses native OTLP, no hooks needed
-        return "otel" in settings
+        return _get_exporter_config(settings) is not None
 
     def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return "otel" in settings
+        return _get_exporter_config(settings) is not None
 
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
-        # No hooks for Codex; configure [otel] section instead
         return settings
 
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         settings.pop("otel", None)
         return settings
 
-    def enable_otlp(self, settings: Dict[str, Any], endpoint: str, headers: str = "") -> Dict[str, Any]:
-        settings["otel"] = {
-            "exporter": "otlp-http",
-            "endpoint": endpoint,
+    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
+        return settings
+
+    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
+        cfg = _get_exporter_config(settings)
+        if cfg is None:
+            return None
+        mapping = {
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "endpoint",
+            "OTEL_EXPORTER_OTLP_HEADERS": "headers",
         }
+        val = cfg.get(mapping.get(key, ""))
+        if isinstance(val, dict):
+            return ",".join(f"{k}={v}" for k, v in val.items())
+        return val
+
+    def enable_otlp(self, settings: Dict[str, Any], endpoint: str, headers: str = "") -> Dict[str, Any]:
+        exporter_cfg: Dict[str, Any] = {"endpoint": endpoint, "protocol": "json"}
         if headers:
-            settings["otel"]["headers"] = headers
+            exporter_cfg["headers"] = _parse_headers(headers)
+        settings["otel"] = {"exporter": {"otlp-http": exporter_cfg}}
         return settings
 
     def enable_langfuse(self, settings: Dict[str, Any], public_key: str, secret_key: str,
@@ -113,8 +123,12 @@ class CodexConfig:
         endpoint = _langfuse_otlp_endpoint(base_url)
         auth = _langfuse_auth_header(public_key, secret_key)
         settings["otel"] = {
-            "exporter": "otlp-http",
-            "endpoint": endpoint,
-            "headers": f"Authorization={auth}",
+            "exporter": {
+                "otlp-http": {
+                    "endpoint": endpoint,
+                    "protocol": "json",
+                    "headers": {"Authorization": auth},
+                },
+            },
         }
         return settings
