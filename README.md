@@ -5,6 +5,8 @@
 
 Send Claude Code session traces to [Langfuse](https://langfuse.com).
 
+<img src="langfuse-demo.png" alt="demo" width="600" />
+
 ## Install
 
 ```bash
