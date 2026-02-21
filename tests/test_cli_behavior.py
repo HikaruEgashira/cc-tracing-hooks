@@ -54,6 +54,7 @@ def _args(
     project: bool = True,
     global_: bool = False,
     local: bool = False,
+    yes: bool = False,
 ) -> argparse.Namespace:
     return argparse.Namespace(
         tool=tool,
@@ -61,6 +62,7 @@ def _args(
         project=project,
         global_=global_,
         local=local,
+        yes=yes,
     )
 
 
@@ -97,7 +99,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(tool.unregister_called, 1)
         self.assertEqual(tool.saved[-1][0]["registered"], False)
 
-    def test_doctor_fixes_missing_hook_and_enables_config_when_user_accepts(self) -> None:
+    def test_doctor_fixes_missing_hook_and_enables_config_when_yes_flag(self) -> None:
         tool = _StubTool(registered=False, scopes=[Scope.PROJECT])
         saved_cfg: dict[str, object] = {}
 
@@ -109,16 +111,61 @@ class CliBehaviorTest(unittest.TestCase):
             "otel_hooks.cli.cfg.load_config", return_value={}
         ), patch("otel_hooks.cli.cfg.load_raw_config", return_value={}), patch(
             "otel_hooks.cli.cfg.env_keys_for_provider", return_value=[]
-        ), patch("otel_hooks.cli.questionary.confirm", return_value=type("Q", (), {"ask": staticmethod(lambda: True)})()), patch(
+        ), patch(
             "otel_hooks.cli.cfg.save_config", side_effect=_save_config
         ):
-            rc = cli.cmd_doctor(_args(provider="datadog"))
+            rc = cli.cmd_doctor(_args(provider="datadog", yes=True))
 
         self.assertEqual(rc, 0)
         self.assertEqual(tool.register_called, 1)
         self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
         self.assertNotIn("enabled", saved_cfg["data"])
         self.assertEqual(saved_cfg["data"]["provider"], "datadog")
+
+    def test_doctor_fixes_via_tui_confirm(self) -> None:
+        tool = _StubTool(registered=False, scopes=[Scope.PROJECT])
+        saved_cfg: dict[str, object] = {}
+
+        def _save_config(data: dict[str, object], scope: Scope) -> None:
+            saved_cfg["data"] = data
+            saved_cfg["scope"] = scope
+
+        with patch("otel_hooks.cli.get_tool", return_value=tool), patch(
+            "otel_hooks.cli.cfg.load_config", return_value={}
+        ), patch("otel_hooks.cli.cfg.load_raw_config", return_value={}), patch(
+            "otel_hooks.cli.cfg.env_keys_for_provider", return_value=[]
+        ), patch(
+            "otel_hooks.cli._confirm", return_value=True
+        ), patch(
+            "otel_hooks.cli.cfg.save_config", side_effect=_save_config
+        ):
+            rc = cli.cmd_doctor(_args(provider="datadog"))
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(tool.register_called, 1)
+
+    def test_doctor_skips_fix_when_user_declines(self) -> None:
+        tool = _StubTool(registered=False, scopes=[Scope.PROJECT])
+
+        with patch("otel_hooks.cli.get_tool", return_value=tool), patch(
+            "otel_hooks.cli.cfg.load_config", return_value={}
+        ), patch(
+            "otel_hooks.cli._confirm", return_value=False
+        ):
+            rc = cli.cmd_doctor(_args(provider="datadog"))
+
+        self.assertEqual(rc, 1)
+        self.assertEqual(tool.register_called, 0)
+
+    def test_resolve_tools_notty_without_flag_raises(self) -> None:
+        with patch("otel_hooks.cli._is_tty", return_value=False):
+            with self.assertRaises(SystemExit):
+                cli._resolve_tools(_args(tool=None))
+
+    def test_resolve_provider_notty_without_flag_raises(self) -> None:
+        with patch("otel_hooks.cli._is_tty", return_value=False):
+            with self.assertRaises(SystemExit):
+                cli._resolve_provider(_args(provider=None))
 
 
 if __name__ == "__main__":

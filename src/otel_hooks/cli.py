@@ -5,14 +5,60 @@ import sys
 from importlib.metadata import version
 
 import questionary
+from rich.console import Console
 
 from . import config as cfg
 from .tools import Scope, available_tools, get_tool, ToolConfig
 
+console = Console(stderr=True)
 
 PROVIDERS = ["langfuse", "otlp", "datadog"]
 TOOLS = available_tools()
 TOOL_CHOICES = [*TOOLS, "all"]
+
+
+class _NoTTYError(SystemExit):
+    def __init__(self, flag: str) -> None:
+        super().__init__(f"No TTY detected. Use {flag} to run non-interactively.")
+
+
+def _is_tty() -> bool:
+    return sys.stdin.isatty()
+
+
+def _require_tty(flag: str) -> None:
+    if not _is_tty():
+        raise _NoTTYError(flag)
+
+
+def _select(message: str, choices: list[str], flag: str) -> str:
+    _require_tty(flag)
+    selected = questionary.select(message, choices=choices).ask()
+    if selected is None:
+        raise SystemExit(1)
+    return selected
+
+
+def _confirm(message: str, *, default: bool = False) -> bool:
+    _require_tty("--yes")
+    result = questionary.confirm(message, default=default).ask()
+    if result is None:
+        raise SystemExit(1)
+    return result
+
+
+def _text(message: str, *, default: str = "", flag: str = "") -> str:
+    if flag:
+        _require_tty(flag)
+    result = questionary.text(message, default=default).ask()
+    return result or default
+
+
+def _password(message: str, *, flag: str = "") -> str:
+    if flag:
+        _require_tty(flag)
+    result = questionary.password(message).ask()
+    return result or ""
 
 
 def _resolve_tools(args: argparse.Namespace) -> list[str]:
@@ -23,9 +69,7 @@ def _resolve_tools(args: argparse.Namespace) -> list[str]:
     if tool:
         return [tool]
 
-    selected = questionary.select("Which tool?", choices=TOOL_CHOICES).ask()
-    if selected is None:
-        return ["claude"]
+    selected = _select("Which tool?", TOOL_CHOICES, "--tool")
     return list(TOOLS) if selected == "all" else [selected]
 
 
@@ -51,8 +95,7 @@ def _resolve_provider(args: argparse.Namespace) -> str:
     if provider:
         return provider
 
-    selected = questionary.select("Which provider?", choices=PROVIDERS).ask()
-    return selected or "langfuse"
+    return _select("Which provider?", PROVIDERS, "--provider")
 
 
 def _add_scope_flags(parser: argparse.ArgumentParser) -> None:
@@ -76,25 +119,23 @@ def _enable_codex(args: argparse.Namespace) -> int:
 
     provider = _resolve_provider(args)
     codex = CodexConfig()
-    cfg = codex.load_settings(Scope.GLOBAL)
+    codex_cfg = codex.load_settings(Scope.GLOBAL)
 
     if provider == "langfuse":
-        public_key = questionary.text("LANGFUSE_PUBLIC_KEY:").ask() or ""
-        secret_key = questionary.password("LANGFUSE_SECRET_KEY:").ask() or ""
-        base_url = questionary.text(
-            "LANGFUSE_BASE_URL:", default="https://cloud.langfuse.com"
-        ).ask() or "https://cloud.langfuse.com"
-        cfg = codex.enable_langfuse(cfg, public_key, secret_key, base_url)
+        public_key = _text("LANGFUSE_PUBLIC_KEY:")
+        secret_key = _password("LANGFUSE_SECRET_KEY:")
+        base_url = _text("LANGFUSE_BASE_URL:", default="https://cloud.langfuse.com")
+        codex_cfg = codex.enable_langfuse(codex_cfg, public_key, secret_key, base_url)
     elif provider == "otlp":
-        endpoint = questionary.text("OTEL_EXPORTER_OTLP_ENDPOINT:").ask() or ""
-        headers = questionary.text("OTEL_EXPORTER_OTLP_HEADERS (k=v,k=v):").ask() or ""
-        cfg = codex.enable_otlp(cfg, endpoint, headers)
+        endpoint = _text("OTEL_EXPORTER_OTLP_ENDPOINT:")
+        headers = _text("OTEL_EXPORTER_OTLP_HEADERS (k=v,k=v):")
+        codex_cfg = codex.enable_otlp(codex_cfg, endpoint, headers)
     else:
-        print(f"Provider '{provider}' is not supported for codex. Use langfuse or otlp.")
+        console.print(f"[red]Provider '{provider}' is not supported for codex. Use langfuse or otlp.[/red]")
         return 1
 
-    codex.save_settings(cfg, Scope.GLOBAL)
-    print(f"Enabled. Settings written to {codex.settings_path(Scope.GLOBAL)}")
+    codex.save_settings(codex_cfg, Scope.GLOBAL)
+    console.print(f"[green]Enabled.[/green] Settings written to {codex.settings_path(Scope.GLOBAL)}")
     return 0
 
 
@@ -105,19 +146,15 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
     tool_cfg = get_tool(tool_name)
     scope = _resolve_scope(args, tool_cfg)
     provider = _resolve_provider(args)
-    print(f"Enabling tracing hooks for {tool_name} ({scope.value}, provider={provider})...")
 
-    # Register hook in the tool's own settings
-    tool_settings = tool_cfg.load_settings(scope)
-    tool_settings = tool_cfg.register_hook(tool_settings)
+    with console.status(f"Enabling {tool_name} ({scope.value}, provider={provider})..."):
+        tool_settings = tool_cfg.load_settings(scope)
+        tool_settings = tool_cfg.register_hook(tool_settings)
+        tool_cfg.save_settings(tool_settings, scope)
 
-    tool_cfg.save_settings(tool_settings, scope)
-    print(f"  Hook registered: {tool_cfg.settings_path(scope)}")
-
-    # Write provider config to otel-hooks config (shared across all tools)
-    config_scope = Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL
-    otel_cfg = cfg.load_raw_config(config_scope)
-    otel_cfg["provider"] = provider
+        config_scope = Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL
+        otel_cfg = cfg.load_raw_config(config_scope)
+        otel_cfg["provider"] = provider
 
     provider_keys = cfg.env_keys_for_provider(provider)
     if provider_keys:
@@ -127,15 +164,15 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
         for field, env_var in provider_keys:
             if not section.get(field) and not merged_section.get(field):
                 if "SECRET" in env_var and scope is Scope.PROJECT:
-                    print(f"  {env_var}: skipped (use --local or --global for secrets)")
+                    console.print(f"  [dim]{env_var}: skipped (use --local or --global for secrets)[/dim]")
                     continue
-                ask_fn = questionary.password if "SECRET" in env_var else questionary.text
-                value = ask_fn(f"{env_var}:").ask() or ""
+                ask_fn = _password if "SECRET" in env_var else _text
+                value = ask_fn(f"{env_var}:")
                 if value:
                     section[field] = value
 
     cfg.save_config(otel_cfg, config_scope)
-    print(f"  Provider config: {cfg.config_path(config_scope)}")
+    console.print(f"[green]Enabled.[/green] Hook: {tool_cfg.settings_path(scope)}, Config: {cfg.config_path(config_scope)}")
     return 0
 
 
@@ -146,7 +183,7 @@ def cmd_enable(args: argparse.Namespace) -> int:
         try:
             rc |= _enable_one(tool_name, args)
         except Exception as e:
-            print(f"Warning: failed to enable {tool_name}: {e}")
+            console.print(f"[yellow]Warning:[/yellow] failed to enable {tool_name}: {e}")
             rc = 1
     return rc
 
@@ -158,51 +195,54 @@ def cmd_disable(args: argparse.Namespace) -> int:
         try:
             tool_cfg = get_tool(tool_name)
             scope = _resolve_scope(args, tool_cfg)
-            print(f"Disabling tracing hooks for {tool_name} ({scope.value})...")
 
             tool_settings = tool_cfg.load_settings(scope)
             tool_settings = tool_cfg.unregister_hook(tool_settings)
-
             tool_cfg.save_settings(tool_settings, scope)
-            print(f"Disabled. Settings written to {tool_cfg.settings_path(scope)}")
+
+            console.print(f"[green]Disabled.[/green] {tool_cfg.settings_path(scope)}")
         except Exception as e:
-            print(f"Warning: failed to disable {tool_name}: {e}")
+            console.print(f"[yellow]Warning:[/yellow] failed to disable {tool_name}: {e}")
             rc = 1
 
     return rc
 
 
 def cmd_status(args: argparse.Namespace) -> int:
+    from rich.table import Table
+
     tool = getattr(args, "tool", None)
     tools = list(TOOLS) if not tool or tool == "all" else [tool]
 
-    for i, name in enumerate(tools):
-        _print_tool_status(name)
-        if i < len(tools) - 1:
-            print()
-    return 0
-
-
-def _print_tool_status(tool_name: str) -> None:
-    tool_cfg = get_tool(tool_name)
-    for scope in tool_cfg.scopes():
-        tool_settings = tool_cfg.load_settings(scope)
-        hook_registered = tool_cfg.is_hook_registered(tool_settings)
-        path = tool_cfg.settings_path(scope)
-
-        print(f"[{tool_name}/{scope.value}] {path}")
-        print(f"  Hook registered: {hook_registered}")
-
-    # Show shared otel-hooks config
     otel_config = cfg.load_config()
     provider = otel_config.get("provider", "(not set)")
-    print(f"  Provider: {provider}")
+
+    table = Table(title="otel-hooks status")
+    table.add_column("Tool")
+    table.add_column("Scope")
+    table.add_column("Hook")
+    table.add_column("Path")
+
+    for name in tools:
+        tool_cfg = get_tool(name)
+        for scope in tool_cfg.scopes():
+            tool_settings = tool_cfg.load_settings(scope)
+            registered = tool_cfg.is_hook_registered(tool_settings)
+            path = str(tool_cfg.settings_path(scope))
+            status = "[green]registered[/green]" if registered else "[dim]not registered[/dim]"
+            table.add_row(name, scope.value, status, path)
+
+    console.print(table)
+    console.print(f"Provider: [bold]{provider}[/bold]")
+
     if provider and provider in ("langfuse", "otlp", "datadog"):
         pcfg = otel_config.get(provider, {})
         for field, env_var in cfg.env_keys_for_provider(provider):
             val = pcfg.get(field, "")
             masked = _mask(val) if "SECRET" in env_var and val else (val or "(not set)")
-            print(f"  {env_var}: {masked}")
+            console.print(f"  {env_var}: {masked}")
+
+    return 0
 
 
 def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
@@ -232,14 +272,15 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
             issues.append("otlp.endpoint not set")
 
     if not issues:
-        print(f"{tool_name}: No issues found.")
+        console.print(f"[green]{tool_name}: No issues found.[/green]")
         return 0
 
-    print(f"{tool_name}: Found {len(issues)} issue(s):")
+    console.print(f"[yellow]{tool_name}: Found {len(issues)} issue(s):[/yellow]")
     for issue in issues:
-        print(f"  - {issue}")
+        console.print(f"  [red]- {issue}[/red]")
 
-    if not questionary.confirm("Fix automatically?", default=False).ask():
+    yes = getattr(args, "yes", False)
+    if not yes and not _confirm("Fix automatically?"):
         return 1
 
     # Fix hook registration
@@ -257,13 +298,13 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
     for field, env_var in cfg.env_keys_for_provider(provider or ""):
         section = otel_cfg.setdefault(provider, {})
         if not section.get(field):
-            ask_fn = questionary.password if "SECRET" in env_var else questionary.text
-            value = ask_fn(f"{env_var}:").ask() or ""
+            ask_fn = _password if "SECRET" in env_var else _text
+            value = ask_fn(f"{env_var}:")
             if value:
                 section[field] = value
 
     cfg.save_config(otel_cfg, config_scope)
-    print("Fixed.")
+    console.print("[green]Fixed.[/green]")
     return 0
 
 
@@ -274,7 +315,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         try:
             rc |= _doctor_one(tool_name, args)
         except Exception as e:
-            print(f"Warning: failed to check {tool_name}: {e}")
+            console.print(f"[yellow]Warning:[/yellow] failed to check {tool_name}: {e}")
             rc = 1
     return rc
 
@@ -313,6 +354,8 @@ def main() -> None:
     p_doctor = sub.add_parser("doctor", help="Check and fix configuration issues")
     _add_scope_flags(p_doctor)
     _add_tool_flag(p_doctor)
+    p_doctor.add_argument("--yes", "-y", action="store_true",
+                          help="Auto-fix without confirmation")
 
     p_hook = sub.add_parser("hook", help="Run the tracing hook (called by AI tools)")
     _add_tool_flag(p_hook)
@@ -330,7 +373,7 @@ def main() -> None:
         "status": cmd_status,
         "doctor": cmd_doctor,
         "hook": cmd_hook,
-        "version": lambda _: print(version("otel-hooks")) or 0,
+        "version": lambda _: console.print(version("otel-hooks")) or 0,
     }
     sys.exit(commands[args.command](args))
 
