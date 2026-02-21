@@ -376,6 +376,19 @@ def _create_provider(name: str):
         except Exception:
             return None
 
+    if name == "datadog":
+        try:
+            from otel_hooks.providers.datadog import DatadogProvider
+        except ImportError:
+            error("ddtrace not installed. Run: pip install otel-hooks[datadog]")
+            return None
+        service = os.environ.get("DD_SERVICE", "otel-hooks")
+        env = os.environ.get("DD_ENV")
+        try:
+            return DatadogProvider(service=service, env=env)
+        except Exception:
+            return None
+
     debug(f"Unknown provider: {name}")
     return None
 

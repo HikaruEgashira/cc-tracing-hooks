@@ -12,6 +12,7 @@ otlp = [
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-http",
 ]
+datadog = ["ddtrace"]
 
 [project.scripts]
 otel-hooks = "otel_hooks.cli:main"

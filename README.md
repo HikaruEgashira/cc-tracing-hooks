@@ -50,18 +50,23 @@ otel-hooks disable --tool <name>
 |----------|---------|-------------|
 | Langfuse | `pip install otel-hooks[langfuse]` | Traces to Langfuse |
 | OTLP | `pip install otel-hooks[otlp]` | Traces via OpenTelemetry OTLP |
+| Datadog | `pip install otel-hooks[datadog]` | Traces to Datadog via ddtrace |
 
 ## Environment variables
 
 | Variable | Description |
 |---|---|
-| `OTEL_HOOKS_PROVIDER` | Provider name (`langfuse` or `otlp`) |
+| `OTEL_HOOKS_PROVIDER` | Provider name (`langfuse`, `otlp`, or `datadog`) |
 | `OTEL_HOOKS_ENABLED` | Set `true` to enable |
 | `LANGFUSE_PUBLIC_KEY` | Langfuse public key |
 | `LANGFUSE_SECRET_KEY` | Langfuse secret key |
 | `LANGFUSE_BASE_URL` | Langfuse host (default: `https://cloud.langfuse.com`) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint URL |
 | `OTEL_EXPORTER_OTLP_HEADERS` | OTLP headers (`key=value,key=value`) |
+| `DD_SERVICE` | Datadog service name (default: `otel-hooks`) |
+| `DD_ENV` | Datadog environment tag |
+| `DD_AGENT_HOST` | Datadog Agent host (default: `localhost`) |
+| `DD_TRACE_AGENT_PORT` | Datadog Agent port (default: `8126`) |
 | `OTEL_HOOKS_DEBUG` | Set `true` to enable debug logging |
 | `OTEL_HOOKS_MAX_CHARS` | Truncation limit per message (default: `20000`) |
 

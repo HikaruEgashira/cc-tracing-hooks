@@ -11,7 +11,7 @@ from .tools.claude import ClaudeConfig, HOOK_COMMAND
 
 __all__ = [
     "Scope", "HOOK_COMMAND",
-    "LANGFUSE_ENV_KEYS", "OTLP_ENV_KEYS", "COMMON_ENV_KEYS", "ENV_KEYS",
+    "LANGFUSE_ENV_KEYS", "OTLP_ENV_KEYS", "DATADOG_ENV_KEYS", "COMMON_ENV_KEYS", "ENV_KEYS",
     "env_keys_for_provider", "settings_path", "load_settings", "save_settings",
     "is_hook_registered", "is_enabled", "get_provider",
     "register_hook", "unregister_hook", "set_env", "get_env", "get_env_status",
@@ -28,12 +28,17 @@ OTLP_ENV_KEYS = [
     "OTEL_EXPORTER_OTLP_HEADERS",
 ]
 
+DATADOG_ENV_KEYS = [
+    "DD_SERVICE",
+    "DD_ENV",
+]
+
 COMMON_ENV_KEYS = [
     "OTEL_HOOKS_PROVIDER",
     "OTEL_HOOKS_ENABLED",
 ]
 
-ENV_KEYS = COMMON_ENV_KEYS + LANGFUSE_ENV_KEYS + OTLP_ENV_KEYS
+ENV_KEYS = COMMON_ENV_KEYS + LANGFUSE_ENV_KEYS + OTLP_ENV_KEYS + DATADOG_ENV_KEYS
 
 _claude = ClaudeConfig()
 
@@ -43,6 +48,8 @@ def env_keys_for_provider(provider: str) -> list[str]:
         return LANGFUSE_ENV_KEYS
     if provider == "otlp":
         return OTLP_ENV_KEYS
+    if provider == "datadog":
+        return DATADOG_ENV_KEYS
     return []
 
 
