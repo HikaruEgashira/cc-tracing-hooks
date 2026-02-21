@@ -10,21 +10,22 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from otel_hooks.domain.transcript import Turn
+from otel_hooks.domain.transcript import MAX_CHARS_DEFAULT, Turn
 from otel_hooks.providers.common import build_turn_payload
 
 
 class OTLPProvider:
-    def __init__(self, endpoint: str, headers: dict[str, str] | None = None) -> None:
+    def __init__(self, endpoint: str, headers: dict[str, str] | None = None, *, max_chars: int = MAX_CHARS_DEFAULT) -> None:
         resource = Resource.create({"service.name": "otel-hooks"})
         exporter = OTLPSpanExporter(endpoint=endpoint, headers=headers or {})
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(exporter))
         self._provider = provider
         self._tracer = provider.get_tracer("otel-hooks")
+        self._max_chars = max_chars
 
     def emit_turn(self, session_id: str, turn_num: int, turn: Turn, transcript_path: Path | None, source_tool: str = "") -> None:
-        payload = build_turn_payload(turn)
+        payload = build_turn_payload(turn, max_chars=self._max_chars)
         attrs: dict[str, str | int] = {
             "session.id": session_id,
             "gen_ai.system": "otel-hooks",

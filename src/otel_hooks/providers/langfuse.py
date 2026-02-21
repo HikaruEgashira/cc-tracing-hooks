@@ -7,16 +7,17 @@ from typing import Any
 
 from langfuse import Langfuse, propagate_attributes
 
-from otel_hooks.domain.transcript import Turn
+from otel_hooks.domain.transcript import MAX_CHARS_DEFAULT, Turn
 from otel_hooks.providers.common import build_turn_payload
 
 
 class LangfuseProvider:
-    def __init__(self, public_key: str, secret_key: str, host: str) -> None:
+    def __init__(self, public_key: str, secret_key: str, host: str, *, max_chars: int = MAX_CHARS_DEFAULT) -> None:
         self._langfuse = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
+        self._max_chars = max_chars
 
     def emit_turn(self, session_id: str, turn_num: int, turn: Turn, transcript_path: Path | None, source_tool: str = "") -> None:
-        payload = build_turn_payload(turn)
+        payload = build_turn_payload(turn, max_chars=self._max_chars)
         metadata: dict[str, Any] = {
             "source": "otel-hooks",
             "session_id": session_id,

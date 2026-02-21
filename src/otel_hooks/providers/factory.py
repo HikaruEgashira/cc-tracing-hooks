@@ -9,6 +9,7 @@ from typing import Any
 def create_provider(name: str, config: dict[str, Any]):
     """Create a provider instance from merged config. Returns None on failure."""
     pcfg = config.get(name, {})
+    max_chars = config.get("max_chars")
 
     if name == "langfuse":
         try:
@@ -21,7 +22,10 @@ def create_provider(name: str, config: dict[str, Any]):
         if not public_key or not secret_key:
             return None
         try:
-            return LangfuseProvider(public_key=public_key, secret_key=secret_key, host=host)
+            kwargs: dict[str, Any] = {}
+            if max_chars is not None:
+                kwargs["max_chars"] = max_chars
+            return LangfuseProvider(public_key=public_key, secret_key=secret_key, host=host, **kwargs)
         except Exception:
             return None
 
@@ -41,7 +45,10 @@ def create_provider(name: str, config: dict[str, Any]):
                     k, v = pair.split("=", 1)
                     headers[k.strip()] = v.strip()
         try:
-            return OTLPProvider(endpoint=endpoint, headers=headers)
+            kwargs = {}
+            if max_chars is not None:
+                kwargs["max_chars"] = max_chars
+            return OTLPProvider(endpoint=endpoint, headers=headers, **kwargs)
         except Exception:
             return None
 
@@ -53,7 +60,10 @@ def create_provider(name: str, config: dict[str, Any]):
         service = pcfg.get("service", "otel-hooks")
         env = pcfg.get("env")
         try:
-            return DatadogProvider(service=service, env=env)
+            kwargs = {}
+            if max_chars is not None:
+                kwargs["max_chars"] = max_chars
+            return DatadogProvider(service=service, env=env, **kwargs)
         except Exception:
             return None
 
