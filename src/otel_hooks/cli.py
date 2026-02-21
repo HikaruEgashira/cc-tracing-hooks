@@ -4,6 +4,7 @@ import argparse
 import getpass
 import os
 import sys
+from importlib.metadata import version
 
 from . import settings as s
 from .settings import Scope
@@ -184,6 +185,7 @@ def main() -> None:
     _add_scope_flags(p_doctor)
 
     sub.add_parser("hook", help="Run the tracing hook (called by Claude Code)")
+    sub.add_parser("version", help="Show version")
 
     args = parser.parse_args()
     if not args.command:
@@ -196,5 +198,6 @@ def main() -> None:
         "status": cmd_status,
         "doctor": cmd_doctor,
         "hook": cmd_hook,
+        "version": lambda _: print(version("otel-hooks")) or 0,
     }
     sys.exit(commands[args.command](args))
