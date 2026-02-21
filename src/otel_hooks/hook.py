@@ -115,11 +115,21 @@ def read_hook_payload() -> Dict[str, Any]:
     except Exception:
         return {}
 
+def detect_tool(payload: Dict[str, Any]) -> str:
+    """Auto-detect which tool sent the hook payload."""
+    if "conversation_id" in payload:
+        return "cursor"
+    if "sessionId" in payload or "session_id" in payload:
+        return "claude"
+    return "unknown"
+
+
 def extract_session_and_transcript(payload: Dict[str, Any]) -> Tuple[Optional[str], Optional[Path]]:
     session_id = (
         payload.get("sessionId")
         or payload.get("session_id")
         or payload.get("session", {}).get("id")
+        or payload.get("conversation_id")  # Cursor
     )
     transcript = (
         payload.get("transcriptPath")
@@ -133,6 +143,11 @@ def extract_session_and_transcript(payload: Dict[str, Any]) -> Tuple[Optional[st
             transcript_path = None
     else:
         transcript_path = None
+
+    tool = detect_tool(payload)
+    if tool == "cursor" and transcript_path is None:
+        warn("Cursor hook: transcript path not available in payload. Tracing skipped.")
+
     return session_id, transcript_path
 
 # ----------------- Transcript parsing helpers -----------------

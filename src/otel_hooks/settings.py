@@ -1,19 +1,21 @@
-"""Read/write Claude Code settings for hook and env management."""
+"""Read/write Claude Code settings for hook and env management.
 
-import json
-import os
-from enum import Enum
+Backward-compatible shim — delegates to tools.claude internally.
+"""
+
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .tools import Scope
+from .tools.claude import ClaudeConfig, HOOK_COMMAND
 
-class Scope(str, Enum):
-    GLOBAL = "global"
-    PROJECT = "project"
-    LOCAL = "local"
-
-
-HOOK_COMMAND = "otel-hooks hook"
+__all__ = [
+    "Scope", "HOOK_COMMAND",
+    "LANGFUSE_ENV_KEYS", "OTLP_ENV_KEYS", "COMMON_ENV_KEYS", "ENV_KEYS",
+    "env_keys_for_provider", "settings_path", "load_settings", "save_settings",
+    "is_hook_registered", "is_enabled", "get_provider",
+    "register_hook", "unregister_hook", "set_env", "get_env", "get_env_status",
+]
 
 LANGFUSE_ENV_KEYS = [
     "LANGFUSE_PUBLIC_KEY",
@@ -33,6 +35,8 @@ COMMON_ENV_KEYS = [
 
 ENV_KEYS = COMMON_ENV_KEYS + LANGFUSE_ENV_KEYS + OTLP_ENV_KEYS
 
+_claude = ClaudeConfig()
+
 
 def env_keys_for_provider(provider: str) -> list[str]:
     if provider == "langfuse":
@@ -43,50 +47,27 @@ def env_keys_for_provider(provider: str) -> list[str]:
 
 
 def settings_path(scope: Scope) -> Path:
-    if scope is Scope.GLOBAL:
-        return Path.home() / ".claude" / "settings.json"
-    if scope is Scope.PROJECT:
-        return Path.cwd() / ".claude" / "settings.json"
-    return Path.cwd() / ".claude" / "settings.local.json"
+    return _claude.settings_path(scope)
 
 
 def load_settings(scope: Scope) -> Dict[str, Any]:
-    path = settings_path(scope)
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return _claude.load_settings(scope)
 
 
 def save_settings(settings: Dict[str, Any], scope: Scope) -> None:
-    path = settings_path(scope)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.write(fd, (json.dumps(settings, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
-    finally:
-        os.close(fd)
-    tmp.replace(path)
+    _claude.save_settings(settings, scope)
 
 
 def is_hook_registered(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> bool:
     if settings is None:
         settings = load_settings(scope)
-    stop_hooks = settings.get("hooks", {}).get("Stop", [])
-    for group in stop_hooks:
-        for hook in group.get("hooks", []):
-            if HOOK_COMMAND in hook.get("command", ""):
-                return True
-    return False
+    return _claude.is_hook_registered(settings)
 
 
 def is_enabled(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> bool:
     if settings is None:
         settings = load_settings(scope)
-    if not is_hook_registered(settings):
-        return False
-    env = settings.get("env", {})
-    return env.get("OTEL_HOOKS_ENABLED", "").lower() == "true"
+    return _claude.is_enabled(settings)
 
 
 def get_provider(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> Optional[str]:
@@ -98,43 +79,19 @@ def get_provider(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope
 
 
 def register_hook(settings: Dict[str, Any]) -> Dict[str, Any]:
-    hooks = settings.setdefault("hooks", {})
-    stop = hooks.setdefault("Stop", [])
-
-    for group in stop:
-        for hook in group.get("hooks", []):
-            if HOOK_COMMAND in hook.get("command", ""):
-                return settings
-
-    stop.append({
-        "hooks": [{"type": "command", "command": HOOK_COMMAND}]
-    })
-    return settings
+    return _claude.register_hook(settings)
 
 
 def unregister_hook(settings: Dict[str, Any]) -> Dict[str, Any]:
-    stop = settings.get("hooks", {}).get("Stop", [])
-    if not stop:
-        return settings
-    settings["hooks"]["Stop"] = [
-        group for group in stop
-        if not any(
-            HOOK_COMMAND in hook.get("command", "")
-            for hook in group.get("hooks", [])
-        )
-    ]
-    if not settings["hooks"]["Stop"]:
-        del settings["hooks"]["Stop"]
-    return settings
+    return _claude.unregister_hook(settings)
 
 
 def set_env(settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-    settings.setdefault("env", {})[key] = value
-    return settings
+    return _claude.set_env(settings, key, value)
 
 
 def get_env(settings: Dict[str, Any], key: str) -> Optional[str]:
-    return settings.get("env", {}).get(key)
+    return _claude.get_env(settings, key)
 
 
 def get_env_status(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> Dict[str, Optional[str]]:
