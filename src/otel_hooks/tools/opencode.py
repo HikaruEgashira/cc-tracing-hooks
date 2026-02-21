@@ -8,7 +8,7 @@ Reference:
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -70,19 +70,3 @@ class OpenCodeConfig:
         if not settings["experimental"]["hook"]["session_completed"]:
             del settings["experimental"]["hook"]["session_completed"]
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        # OpenCode hooks support per-hook environment variables
-        hooks = settings.get("experimental", {}).get("hook", {}).get("session_completed", [])
-        for h in hooks:
-            if HOOK_COMMAND in " ".join(h.get("command", [])):
-                h.setdefault("environment", {})[key] = value
-                return settings
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        hooks = settings.get("experimental", {}).get("hook", {}).get("session_completed", [])
-        for h in hooks:
-            if HOOK_COMMAND in " ".join(h.get("command", [])):
-                return h.get("environment", {}).get(key)
-        return os.environ.get(key)

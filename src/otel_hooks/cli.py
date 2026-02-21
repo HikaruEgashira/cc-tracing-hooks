@@ -6,9 +6,8 @@ import os
 import sys
 from importlib.metadata import version
 
-from . import settings as s
-from .settings import Scope
-from .tools import available_tools, get_tool, ToolConfig
+from . import config as cfg
+from .tools import Scope, available_tools, get_tool, ToolConfig
 
 
 PROVIDERS = ["langfuse", "otlp", "datadog"]
@@ -125,27 +124,34 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
     provider = _resolve_provider(args)
     print(f"Enabling tracing hooks for {tool_name} ({scope.value}, provider={provider})...")
 
-    cfg = tool_cfg.load_settings(scope)
-    cfg = tool_cfg.register_hook(cfg)
+    # Register hook in the tool's own settings
+    tool_settings = tool_cfg.load_settings(scope)
+    tool_settings = tool_cfg.register_hook(tool_settings)
 
-    # For Claude, also set env vars in settings
-    if tool_name == "claude":
-        cfg = tool_cfg.set_env(cfg, "OTEL_HOOKS_PROVIDER", provider)
-        cfg = tool_cfg.set_env(cfg, "OTEL_HOOKS_ENABLED", "true")
+    tool_cfg.save_settings(tool_settings, scope)
+    print(f"  Hook registered: {tool_cfg.settings_path(scope)}")
 
-        env_keys = s.env_keys_for_provider(provider)
-        for key in env_keys:
-            if not tool_cfg.get_env(cfg, key):
-                if "SECRET" in key and scope is Scope.PROJECT:
-                    print(f"  {key}: skipped (use --local or --global for secrets)")
+    # Write provider config to otel-hooks config (shared across all tools)
+    config_scope = Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL
+    otel_cfg = cfg._read_json(cfg.config_path(config_scope))
+    otel_cfg["provider"] = provider
+    otel_cfg["enabled"] = True
+
+    provider_keys = cfg.env_keys_for_provider(provider)
+    if provider_keys:
+        section = otel_cfg.setdefault(provider, {})
+        for field, env_var in provider_keys:
+            if not section.get(field):
+                if "SECRET" in env_var and scope is Scope.PROJECT:
+                    print(f"  {env_var}: skipped (use --local or --global for secrets)")
                     continue
-                prompt_fn = getpass.getpass if "SECRET" in key else input
-                value = prompt_fn(f"  {key}: ").strip()
+                prompt_fn = getpass.getpass if "SECRET" in env_var else input
+                value = prompt_fn(f"  {env_var}: ").strip()
                 if value:
-                    cfg = tool_cfg.set_env(cfg, key, value)
+                    section[field] = value
 
-    tool_cfg.save_settings(cfg, scope)
-    print(f"Enabled. Settings written to {tool_cfg.settings_path(scope)}")
+    cfg.save_config(otel_cfg, config_scope)
+    print(f"  Provider config: {cfg.config_path(config_scope)}")
     return 0
 
 
@@ -170,17 +176,22 @@ def cmd_disable(args: argparse.Namespace) -> int:
             scope = _resolve_scope(args, tool_cfg)
             print(f"Disabling tracing hooks for {tool_name} ({scope.value})...")
 
-            cfg = tool_cfg.load_settings(scope)
-            cfg = tool_cfg.unregister_hook(cfg)
+            tool_settings = tool_cfg.load_settings(scope)
+            tool_settings = tool_cfg.unregister_hook(tool_settings)
 
-            if tool_name == "claude":
-                cfg = tool_cfg.set_env(cfg, "OTEL_HOOKS_ENABLED", "false")
-
-            tool_cfg.save_settings(cfg, scope)
+            tool_cfg.save_settings(tool_settings, scope)
             print(f"Disabled. Settings written to {tool_cfg.settings_path(scope)}")
         except Exception as e:
             print(f"Warning: failed to disable {tool_name}: {e}")
             rc = 1
+
+    # Update otel-hooks config
+    if tools:
+        config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
+        otel_cfg = cfg._read_json(cfg.config_path(config_scope))
+        otel_cfg["enabled"] = False
+        cfg.save_config(otel_cfg, config_scope)
+
     return rc
 
 
@@ -198,67 +209,62 @@ def cmd_status(args: argparse.Namespace) -> int:
 def _print_tool_status(tool_name: str) -> None:
     tool_cfg = get_tool(tool_name)
     for scope in tool_cfg.scopes():
-        cfg = tool_cfg.load_settings(scope)
-        enabled = tool_cfg.is_enabled(cfg)
-        hook_registered = tool_cfg.is_hook_registered(cfg)
+        tool_settings = tool_cfg.load_settings(scope)
+        hook_registered = tool_cfg.is_hook_registered(tool_settings)
         path = tool_cfg.settings_path(scope)
 
         print(f"[{tool_name}/{scope.value}] {path}")
-        print(f"  Status: {'enabled' if enabled else 'disabled'}")
         print(f"  Hook registered: {hook_registered}")
 
-        if tool_name == "claude":
-            provider = s.get_provider(cfg, scope)
-            print(f"  Provider: {provider or '(not set)'}")
-            env_status = s.get_env_status(cfg, scope)
-            print(f"  Environment:")
-            for key, value in env_status.items():
-                masked = _mask(value) if "SECRET" in key and value else value
-                print(f"    {key}: {masked or '(not set)'}")
+    # Show shared otel-hooks config
+    otel_config = cfg.load_config()
+    provider = otel_config.get("provider", "(not set)")
+    enabled = otel_config.get("enabled", False)
+    print(f"  Provider: {provider}")
+    print(f"  Enabled: {enabled}")
+    if provider and provider in ("langfuse", "otlp", "datadog"):
+        pcfg = otel_config.get(provider, {})
+        for field, env_var in cfg.env_keys_for_provider(provider):
+            val = pcfg.get(field, "")
+            masked = _mask(val) if "SECRET" in env_var and val else (val or "(not set)")
+            print(f"  {env_var}: {masked}")
 
 
 def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
-    if tool_name != "claude":
-        tool_cfg = get_tool(tool_name)
-        scope = tool_cfg.scopes()[0]
-        cfg = tool_cfg.load_settings(scope)
-        if tool_cfg.is_enabled(cfg):
-            print(f"{tool_name}: No issues found.")
-        else:
-            print(f"{tool_name}: Not configured. Run: otel-hooks enable --tool {tool_name}")
-        return 0
-
-    scope = _resolve_scope(args)
-    cfg = s.load_settings(scope)
-    provider = s.get_provider(cfg, scope)
+    tool_cfg = get_tool(tool_name)
+    scope = tool_cfg.scopes()[0]
+    tool_settings = tool_cfg.load_settings(scope)
     issues: list[str] = []
 
-    if not s.is_hook_registered(cfg):
-        issues.append("Hook not registered in settings")
+    if not tool_cfg.is_hook_registered(tool_settings):
+        issues.append(f"Hook not registered in {tool_cfg.settings_path(scope)}")
 
-    if not s.is_enabled(cfg, scope):
-        issues.append("OTEL_HOOKS_ENABLED is not 'true'")
+    otel_config = cfg.load_config()
+    provider = otel_config.get("provider")
+    enabled = otel_config.get("enabled", False)
+
+    if not enabled:
+        issues.append("otel-hooks not enabled (set enabled=true in config)")
 
     if not provider:
-        issues.append("OTEL_HOOKS_PROVIDER not set")
+        issues.append("provider not set in otel-hooks config")
 
-    env = s.get_env_status(cfg, scope)
     if provider == "langfuse":
-        if not env.get("LANGFUSE_PUBLIC_KEY"):
-            issues.append("LANGFUSE_PUBLIC_KEY not set")
-        if not env.get("LANGFUSE_SECRET_KEY"):
-            issues.append("LANGFUSE_SECRET_KEY not set")
+        pcfg = otel_config.get("langfuse", {})
+        if not pcfg.get("public_key"):
+            issues.append("langfuse.public_key not set")
+        if not pcfg.get("secret_key"):
+            issues.append("langfuse.secret_key not set")
     elif provider == "otlp":
-        if not env.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
-            issues.append("OTEL_EXPORTER_OTLP_ENDPOINT not set")
-    elif provider == "datadog":
-        pass  # DD_SERVICE/DD_ENV are optional; ddtrace connects to local agent by default
+        pcfg = otel_config.get("otlp", {})
+        if not pcfg.get("endpoint"):
+            issues.append("otlp.endpoint not set")
 
     if not issues:
-        print("No issues found.")
+        print(f"{tool_name}: No issues found.")
         return 0
 
-    print(f"Found {len(issues)} issue(s):")
+    print(f"{tool_name}: Found {len(issues)} issue(s):")
     for issue in issues:
         print(f"  - {issue}")
 
@@ -266,21 +272,29 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
     if answer != "y":
         return 1
 
-    cfg = s.register_hook(cfg)
-    if not s.is_enabled(cfg, scope):
-        cfg = s.set_env(cfg, "OTEL_HOOKS_ENABLED", "true")
+    # Fix hook registration
+    if not tool_cfg.is_hook_registered(tool_settings):
+        tool_settings = tool_cfg.register_hook(tool_settings)
+        tool_cfg.save_settings(tool_settings, scope)
+
+    # Fix otel-hooks config
+    config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
+    otel_cfg = cfg._read_json(cfg.config_path(config_scope))
+    otel_cfg["enabled"] = True
 
     if not provider:
         provider = _resolve_provider(args)
-        cfg = s.set_env(cfg, "OTEL_HOOKS_PROVIDER", provider)
+    otel_cfg["provider"] = provider
 
-    for key in s.env_keys_for_provider(provider or ""):
-        if not env.get(key):
-            prompt_fn = getpass.getpass if "SECRET" in key else input
-            value = prompt_fn(f"  {key}: ").strip()
+    for field, env_var in cfg.env_keys_for_provider(provider or ""):
+        section = otel_cfg.setdefault(provider, {})
+        if not section.get(field):
+            prompt_fn = getpass.getpass if "SECRET" in env_var else input
+            value = prompt_fn(f"  {env_var}: ").strip()
             if value:
-                cfg = s.set_env(cfg, key, value)
-    s.save_settings(cfg, scope)
+                section[field] = value
+
+    cfg.save_config(otel_cfg, config_scope)
     print("Fixed.")
     return 0
 

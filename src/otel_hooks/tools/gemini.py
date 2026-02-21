@@ -10,7 +10,7 @@ Reference:
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -82,10 +82,3 @@ class GeminiConfig:
         if not settings["hooks"]["SessionEnd"]:
             del settings["hooks"]["SessionEnd"]
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        # Gemini CLI doesn't have env in settings; use system env
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        return os.environ.get(key)

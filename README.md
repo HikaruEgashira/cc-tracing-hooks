@@ -42,7 +42,32 @@ otel-hooks disable --tool <name>
 
 ## How it works
 
-`enable` registers a hook in each tool's configuration that runs `otel-hooks hook` at session end. The hook reads the session transcript incrementally and emits traces to the configured provider. Codex CLI uses native OTLP support instead of hooks.
+`enable` registers a hook in each tool's configuration that runs `otel-hooks hook` at session end. The hook reads the session transcript incrementally and emits traces to the configured provider. Provider settings are stored in a unified otel-hooks config file, shared across all tools. Codex CLI uses native OTLP support instead of hooks.
+
+## Configuration
+
+Provider settings are stored in otel-hooks config files (not in each tool's settings):
+
+- **Global**: `~/.config/otel-hooks/config.json`
+- **Project**: `.otel-hooks.json` (repository root)
+
+Project config overrides global. Environment variables override both.
+
+```json
+{
+  "provider": "langfuse",
+  "enabled": true,
+  "debug": false,
+  "max_chars": 20000,
+  "langfuse": {
+    "public_key": "pk-...",
+    "secret_key": "sk-...",
+    "base_url": "https://cloud.langfuse.com"
+  }
+}
+```
+
+`otel-hooks enable` writes this config interactively. Each tool's own settings file only contains the hook registration.
 
 ## Providers
 
@@ -60,11 +85,11 @@ pip install otel-hooks[langfuse]
 otel-hooks enable --tool claude --provider langfuse
 ```
 
-| Variable | Description |
-|---|---|
-| `LANGFUSE_PUBLIC_KEY` | Public key |
-| `LANGFUSE_SECRET_KEY` | Secret key |
-| `LANGFUSE_BASE_URL` | Host (default: `https://cloud.langfuse.com`) |
+| Config key | Env override | Description |
+|---|---|---|
+| `langfuse.public_key` | `LANGFUSE_PUBLIC_KEY` | Public key |
+| `langfuse.secret_key` | `LANGFUSE_SECRET_KEY` | Secret key |
+| `langfuse.base_url` | `LANGFUSE_BASE_URL` | Host (default: `https://cloud.langfuse.com`) |
 
 </details>
 
@@ -76,10 +101,10 @@ pip install otel-hooks[otlp]
 otel-hooks enable --tool claude --provider otlp
 ```
 
-| Variable | Description |
-|---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint URL |
-| `OTEL_EXPORTER_OTLP_HEADERS` | Headers (`key=value,key=value`) |
+| Config key | Env override | Description |
+|---|---|---|
+| `otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint URL |
+| `otlp.headers` | `OTEL_EXPORTER_OTLP_HEADERS` | Headers (`key=value,key=value`) |
 
 </details>
 
@@ -93,17 +118,17 @@ otel-hooks enable --tool claude --provider datadog
 
 Requires a running [Datadog Agent](https://docs.datadoghq.com/agent/).
 
-| Variable | Description |
-|---|---|
-| `DD_SERVICE` | Service name (default: `otel-hooks`) |
-| `DD_ENV` | Environment tag |
-| `DD_AGENT_HOST` | Agent host (default: `localhost`) |
-| `DD_TRACE_AGENT_PORT` | Agent port (default: `8126`) |
+| Config key | Env override | Description |
+|---|---|---|
+| `datadog.service` | `DD_SERVICE` | Service name (default: `otel-hooks`) |
+| `datadog.env` | `DD_ENV` | Environment tag |
 
 </details>
 
 <details>
-<summary>Common environment variables</summary>
+<summary>Environment variable overrides</summary>
+
+Environment variables always take precedence over config files.
 
 | Variable | Description |
 |---|---|

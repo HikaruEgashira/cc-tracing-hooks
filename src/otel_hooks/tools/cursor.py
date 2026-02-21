@@ -7,7 +7,7 @@ Reference:
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -71,11 +71,3 @@ class CursorConfig:
         if not settings["hooks"]["stop"]:
             del settings["hooks"]["stop"]
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        # Cursor has no env mechanism in hooks.json.
-        # Env vars are inherited from Claude Code settings or system env.
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        return os.environ.get(key)

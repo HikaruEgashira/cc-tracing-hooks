@@ -11,7 +11,7 @@ Reference:
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -78,19 +78,3 @@ class CopilotConfig:
         if not settings["hooks"]["sessionEnd"]:
             del settings["hooks"]["sessionEnd"]
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        # Copilot hooks support per-hook env
-        session_end = settings.get("hooks", {}).get("sessionEnd", [])
-        for h in session_end:
-            if HOOK_COMMAND in h.get("bash", ""):
-                h.setdefault("env", {})[key] = value
-                return settings
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        session_end = settings.get("hooks", {}).get("sessionEnd", [])
-        for h in session_end:
-            if HOOK_COMMAND in h.get("bash", ""):
-                return h.get("env", {}).get(key)
-        return os.environ.get(key)

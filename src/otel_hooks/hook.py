@@ -22,8 +22,8 @@ LOG_FILE = STATE_DIR / "otel_hook.log"
 STATE_FILE = STATE_DIR / "otel_hook_state.json"
 LOCK_FILE = STATE_DIR / "otel_hook_state.lock"
 
-DEBUG = os.environ.get("OTEL_HOOKS_DEBUG", "").lower() == "true"
-MAX_CHARS = int(os.environ.get("OTEL_HOOKS_MAX_CHARS", "20000"))
+DEBUG = False
+MAX_CHARS = 20000
 
 # ----------------- Logging -----------------
 def _log(level: str, message: str) -> None:
@@ -336,17 +336,19 @@ def build_turns(messages: List[Dict[str, Any]]) -> List[Turn]:
     return turns
 
 # ----------------- Provider factory -----------------
-def _create_provider(name: str):
-    """Create a provider instance. Returns None on failure (fail-open)."""
+def _create_provider(name: str, config: Dict[str, Any]):
+    """Create a provider instance from unified config. Returns None on failure (fail-open)."""
+    pcfg = config.get(name, {})
+
     if name == "langfuse":
         try:
             from otel_hooks.providers.langfuse import LangfuseProvider
         except ImportError:
             error("langfuse not installed. Run: pip install otel-hooks[langfuse]")
             return None
-        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
-        secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
-        host = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+        public_key = pcfg.get("public_key")
+        secret_key = pcfg.get("secret_key")
+        host = pcfg.get("base_url", "https://cloud.langfuse.com")
         if not public_key or not secret_key:
             return None
         try:
@@ -360,11 +362,11 @@ def _create_provider(name: str):
         except ImportError:
             error("opentelemetry not installed. Run: pip install otel-hooks[otlp]")
             return None
-        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+        endpoint = pcfg.get("endpoint", "")
         if not endpoint:
-            debug("OTEL_EXPORTER_OTLP_ENDPOINT not set")
+            debug("OTLP endpoint not configured")
             return None
-        headers_raw = os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", "")
+        headers_raw = pcfg.get("headers", "")
         headers: dict[str, str] = {}
         if headers_raw:
             for pair in headers_raw.split(","):
@@ -382,8 +384,8 @@ def _create_provider(name: str):
         except ImportError:
             error("ddtrace not installed. Run: pip install otel-hooks[datadog]")
             return None
-        service = os.environ.get("DD_SERVICE", "otel-hooks")
-        env = os.environ.get("DD_ENV")
+        service = pcfg.get("service", "otel-hooks")
+        env = pcfg.get("env")
         try:
             return DatadogProvider(service=service, env=env)
         except Exception:
@@ -394,17 +396,29 @@ def _create_provider(name: str):
 
 # ----------------- Main -----------------
 def main() -> int:
+    global DEBUG, MAX_CHARS
+
     start = time.time()
+
+    try:
+        from otel_hooks.config import load_config
+        config = load_config()
+    except Exception:
+        config = {}
+
+    DEBUG = config.get("debug", False)
+    MAX_CHARS = config.get("max_chars", 20000)
+
     debug("Hook started")
 
-    if os.environ.get("OTEL_HOOKS_ENABLED", "").lower() != "true":
+    if not config.get("enabled", False):
         return 0
 
-    provider_name = os.environ.get("OTEL_HOOKS_PROVIDER", "").lower()
+    provider_name = config.get("provider", "")
     if not provider_name:
         return 0
 
-    provider = _create_provider(provider_name)
+    provider = _create_provider(provider_name, config)
     if not provider:
         return 0
 

@@ -8,7 +8,7 @@ Reference:
 import base64
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -98,18 +98,6 @@ class CodexConfig:
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         settings.pop("otel", None)
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        # Codex doesn't use env; config is in TOML
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        otel = settings.get("otel", {})
-        mapping = {
-            "OTEL_EXPORTER_OTLP_ENDPOINT": "endpoint",
-            "OTEL_EXPORTER_OTLP_HEADERS": "headers",
-        }
-        return otel.get(mapping.get(key, ""))
 
     def enable_otlp(self, settings: Dict[str, Any], endpoint: str, headers: str = "") -> Dict[str, Any]:
         settings["otel"] = {

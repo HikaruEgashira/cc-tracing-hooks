@@ -10,7 +10,7 @@ Reference:
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from . import Scope, register_tool
 
@@ -74,9 +74,3 @@ class KiroConfig:
         if not settings["hooks"]["stop"]:
             del settings["hooks"]["stop"]
         return settings
-
-    def set_env(self, settings: Dict[str, Any], key: str, value: str) -> Dict[str, Any]:
-        return settings
-
-    def get_env(self, settings: Dict[str, Any], key: str) -> Optional[str]:
-        return os.environ.get(key)
