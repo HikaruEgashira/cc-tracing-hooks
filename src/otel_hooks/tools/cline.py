@@ -57,9 +57,6 @@ class ClineConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         return HOOK_COMMAND in settings.get("_script", "")
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return self.is_hook_registered(settings)
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         if self.is_hook_registered(settings):
             return settings

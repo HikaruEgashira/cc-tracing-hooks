@@ -57,9 +57,6 @@ class CopilotConfig:
             for event_name in _HOOK_EVENTS
         )
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return self.is_hook_registered(settings)
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         settings.setdefault("version", 1)
         hooks = settings.setdefault("hooks", {})

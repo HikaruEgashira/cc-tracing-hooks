@@ -19,16 +19,16 @@ pipx otel-hooks
 
 ## Supported tools
 
-| Tool | Support | Mechanism | Setup |
-|------|---------|-----------|-------|
-| [Claude Code](https://code.claude.com/docs/en/hooks) | Trace | Stop hook → transcript parsing | `otel-hooks enable --tool claude` |
-| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Stop hook (v1.7+ beta) | `otel-hooks enable --tool cursor` |
-| [Codex CLI](https://developers.openai.com/codex/config-reference) | Trace | Native OTLP (`~/.codex/config.toml`) | `otel-hooks enable --tool codex` |
-| [OpenCode](https://opencode.ai/docs/plugins/) | Trace + Metrics | Plugin event stream (`.opencode/plugins/otel-hooks.js`) | `otel-hooks enable --tool opencode` |
-| [GitHub Copilot](https://docs.github.com/en/copilot/reference/hooks-configuration) | Metrics | Hook events (`userPromptSubmitted/preToolUse/postToolUse/sessionEnd`) | `otel-hooks enable --tool copilot` |
-| [Kiro](https://kiro.dev/docs/cli/hooks/) | Metrics | Hook events (`userPromptSubmit/preToolUse/postToolUse/stop`) | `otel-hooks enable --tool kiro` |
-| [Gemini CLI](https://geminicli.com/docs/hooks/) | Trace | `SessionEnd` hook | `otel-hooks enable --tool gemini` |
-| [Cline](https://docs.cline.bot/customization/hooks) | Trace | `TaskComplete` script | `otel-hooks enable --tool cline` |
+| Tool | Support | Scope | Setup |
+|------|---------|-------|-------|
+| [Claude Code](https://code.claude.com/docs/en/hooks) | Trace | Global / Project | `otel-hooks enable --tool claude` |
+| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Project | `otel-hooks enable --tool cursor` |
+| [Codex CLI](https://developers.openai.com/codex/config-reference) | Trace | Global | `otel-hooks enable --tool codex` |
+| [OpenCode](https://opencode.ai/docs/plugins/) | Trace + Metrics | Project | `otel-hooks enable --tool opencode` |
+| [GitHub Copilot](https://docs.github.com/en/copilot/reference/hooks-configuration) | Metrics | Project | `otel-hooks enable --tool copilot` |
+| [Kiro](https://kiro.dev/docs/cli/hooks/) | Metrics | Global / Project | `otel-hooks enable --tool kiro` |
+| [Gemini CLI](https://geminicli.com/docs/hooks/) | Trace | Global / Project | `otel-hooks enable --tool gemini` |
+| [Cline](https://docs.cline.bot/customization/hooks) | Trace | Project | `otel-hooks enable --tool cline` |
 
 ## Usage
 
@@ -60,7 +60,6 @@ Project config overrides global. Environment variables override both.
 ```json
 {
   "provider": "langfuse",
-  "enabled": true,
   "debug": false,
   "max_chars": 20000,
   "langfuse": {
@@ -137,7 +136,6 @@ Environment variables always take precedence over config files.
 | Variable | Description |
 |---|---|
 | `OTEL_HOOKS_PROVIDER` | `langfuse`, `otlp`, or `datadog` |
-| `OTEL_HOOKS_ENABLED` | Set `true` to enable |
 | `OTEL_HOOKS_DEBUG` | Set `true` to enable debug logging |
 | `OTEL_HOOKS_MAX_CHARS` | Truncation limit per message (default: `20000`) |
 

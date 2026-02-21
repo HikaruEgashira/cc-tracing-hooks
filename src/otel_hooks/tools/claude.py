@@ -43,12 +43,6 @@ class ClaudeConfig:
                     return True
         return False
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        if not self.is_hook_registered(settings):
-            return False
-        env = settings.get("env", {})
-        return env.get("OTEL_HOOKS_ENABLED", "").lower() == "true"
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         hooks = settings.setdefault("hooks", {})
         stop = hooks.setdefault("Stop", [])

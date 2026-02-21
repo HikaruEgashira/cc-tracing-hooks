@@ -83,7 +83,6 @@ class HookIntegrationTest(unittest.TestCase):
 
             payload = {"sessionId": "s-1", "transcriptPath": str(transcript)}
             config = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state"),
@@ -123,7 +122,6 @@ class HookIntegrationTest(unittest.TestCase):
             root = Path(td)
             payload = {"hook_event_name": "PreToolUse", "tool_name": "bash", "cwd": str(root)}
             config = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state"),
@@ -145,7 +143,6 @@ class HookIntegrationTest(unittest.TestCase):
             transcript.write_text("", encoding="utf-8")
             payload = {"sessionId": "s-1", "transcriptPath": str(transcript)}
             config = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state"),
@@ -190,7 +187,6 @@ class HookIntegrationTest(unittest.TestCase):
 
             payload = {"sessionId": "s-1", "transcriptPath": str(transcript)}
             config = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state"),
@@ -246,7 +242,6 @@ class HookIntegrationTest(unittest.TestCase):
 
             payload = {"sessionId": "s-1", "transcriptPath": str(transcript)}
             config = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state"),
@@ -327,13 +322,11 @@ class HookIntegrationTest(unittest.TestCase):
             payload_a = {"sessionId": "s-a", "transcriptPath": str(transcript_a)}
             payload_b = {"sessionId": "s-b", "transcriptPath": str(transcript_b)}
             config_a = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state-a"),
             }
             config_b = {
-                "enabled": True,
                 "provider": "langfuse",
                 "debug": False,
                 "state_dir": str(root / "state-b"),

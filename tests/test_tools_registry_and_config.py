@@ -31,10 +31,10 @@ class ToolsRegistryAndConfigTest(unittest.TestCase):
     def test_load_raw_config_reads_single_scope_without_merge(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            (root / ".otel-hooks.json").write_text('{"enabled": false}', encoding="utf-8")
+            (root / ".otel-hooks.json").write_text('{"provider": "otlp"}', encoding="utf-8")
             cfg_dir = root / ".config" / "otel-hooks"
             cfg_dir.mkdir(parents=True, exist_ok=True)
-            (cfg_dir / "config.json").write_text('{"enabled": true}', encoding="utf-8")
+            (cfg_dir / "config.json").write_text('{"provider": "langfuse"}', encoding="utf-8")
 
             with patch("otel_hooks.config.Path.cwd", return_value=root), patch(
                 "otel_hooks.config.Path.home", return_value=root
@@ -42,23 +42,23 @@ class ToolsRegistryAndConfigTest(unittest.TestCase):
                 project_cfg = config.load_raw_config(Scope.PROJECT)
                 global_cfg = config.load_raw_config(Scope.GLOBAL)
 
-            self.assertEqual(project_cfg["enabled"], False)
-            self.assertEqual(global_cfg["enabled"], True)
+            self.assertEqual(project_cfg["provider"], "otlp")
+            self.assertEqual(global_cfg["provider"], "langfuse")
 
     def test_load_config_applies_env_override_last(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            (root / ".otel-hooks.json").write_text('{"enabled": false}', encoding="utf-8")
+            (root / ".otel-hooks.json").write_text('{"provider": "otlp"}', encoding="utf-8")
             cfg_dir = root / ".config" / "otel-hooks"
             cfg_dir.mkdir(parents=True, exist_ok=True)
-            (cfg_dir / "config.json").write_text('{"enabled": false, "provider":"langfuse"}', encoding="utf-8")
+            (cfg_dir / "config.json").write_text('{"provider":"langfuse"}', encoding="utf-8")
 
-            with patch.dict(os.environ, {"OTEL_HOOKS_ENABLED": "true"}, clear=False), patch(
+            with patch.dict(os.environ, {"OTEL_HOOKS_PROVIDER": "datadog"}, clear=False), patch(
                 "otel_hooks.config.Path.cwd", return_value=root
             ), patch("otel_hooks.config.Path.home", return_value=root):
                 merged = config.load_config()
 
-            self.assertEqual(merged["enabled"], True)
+            self.assertEqual(merged["provider"], "datadog")
 
 
 if __name__ == "__main__":

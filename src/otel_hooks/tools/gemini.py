@@ -44,9 +44,6 @@ class GeminiConfig:
                     return True
         return False
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return self.is_hook_registered(settings)
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         hooks = settings.setdefault("hooks", {})
         session_end = hooks.setdefault("SessionEnd", [])

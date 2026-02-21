@@ -4,7 +4,6 @@ Reference:
   - https://cursor.com/ja/docs/agent/hooks
 """
 
-import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -35,12 +34,6 @@ class CursorConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         stop_hooks = settings.get("hooks", {}).get("stop", [])
         return any(HOOK_COMMAND in h.get("command", "") for h in stop_hooks)
-
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        if not self.is_hook_registered(settings):
-            return False
-        # Cursor uses env inherited from process; check os.environ
-        return os.environ.get("OTEL_HOOKS_ENABLED", "").lower() == "true"
 
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         hooks = settings.setdefault("hooks", {})

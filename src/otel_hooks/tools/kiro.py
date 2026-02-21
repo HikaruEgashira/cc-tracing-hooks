@@ -46,9 +46,6 @@ class KiroConfig:
             for event_name in _HOOK_EVENTS
         )
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return self.is_hook_registered(settings)
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         hooks = settings.setdefault("hooks", {})
         for event_name in _HOOK_EVENTS:

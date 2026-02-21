@@ -84,27 +84,18 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(tool.register_called, 1)
         self.assertEqual(tool.saved[-1][1], Scope.PROJECT)
         self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
-        self.assertEqual(saved_cfg["data"]["enabled"], True)
         self.assertEqual(saved_cfg["data"]["provider"], "datadog")
+        self.assertNotIn("enabled", saved_cfg["data"])
 
-    def test_cmd_disable_unregisters_hook_and_writes_enabled_false(self) -> None:
+    def test_cmd_disable_unregisters_hook_without_touching_otel_config(self) -> None:
         tool = _StubTool(registered=True, scopes=[Scope.PROJECT])
-        saved_cfg: dict[str, object] = {}
 
-        def _save_config(data: dict[str, object], scope: Scope) -> None:
-            saved_cfg["data"] = data
-            saved_cfg["scope"] = scope
-
-        with patch("otel_hooks.cli.get_tool", return_value=tool), patch(
-            "otel_hooks.cli.cfg.load_raw_config", return_value={"enabled": True}
-        ), patch("otel_hooks.cli.cfg.save_config", side_effect=_save_config):
+        with patch("otel_hooks.cli.get_tool", return_value=tool):
             rc = cli.cmd_disable(_args())
 
         self.assertEqual(rc, 0)
         self.assertEqual(tool.unregister_called, 1)
         self.assertEqual(tool.saved[-1][0]["registered"], False)
-        self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
-        self.assertEqual(saved_cfg["data"]["enabled"], False)
 
     def test_doctor_fixes_missing_hook_and_enables_config_when_user_accepts(self) -> None:
         tool = _StubTool(registered=False, scopes=[Scope.PROJECT])
@@ -115,10 +106,10 @@ class CliBehaviorTest(unittest.TestCase):
             saved_cfg["scope"] = scope
 
         with patch("otel_hooks.cli.get_tool", return_value=tool), patch(
-            "otel_hooks.cli.cfg.load_config", return_value={"enabled": False}
+            "otel_hooks.cli.cfg.load_config", return_value={}
         ), patch("otel_hooks.cli.cfg.load_raw_config", return_value={}), patch(
             "otel_hooks.cli.cfg.env_keys_for_provider", return_value=[]
-        ), patch("builtins.input", return_value="y"), patch(
+        ), patch("otel_hooks.cli.questionary.confirm", return_value=type("Q", (), {"ask": staticmethod(lambda: True)})()), patch(
             "otel_hooks.cli.cfg.save_config", side_effect=_save_config
         ):
             rc = cli.cmd_doctor(_args(provider="datadog"))
@@ -126,7 +117,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(tool.register_called, 1)
         self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
-        self.assertEqual(saved_cfg["data"]["enabled"], True)
+        self.assertNotIn("enabled", saved_cfg["data"])
         self.assertEqual(saved_cfg["data"]["provider"], "datadog")
 
 

@@ -84,9 +84,6 @@ class CodexConfig:
     def is_hook_registered(self, settings: Dict[str, Any]) -> bool:
         return _get_exporter_config(settings) is not None
 
-    def is_enabled(self, settings: Dict[str, Any]) -> bool:
-        return _get_exporter_config(settings) is not None
-
     def register_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
         return settings
 
