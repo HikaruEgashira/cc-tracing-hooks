@@ -10,6 +10,9 @@ from . import settings as s
 from .settings import Scope
 
 
+PROVIDERS = ["langfuse", "otlp"]
+
+
 def _resolve_scope(args: argparse.Namespace) -> Scope:
     if getattr(args, "global_", False):
         return Scope.GLOBAL
@@ -35,6 +38,25 @@ def _resolve_scope(args: argparse.Namespace) -> Scope:
     return Scope.GLOBAL
 
 
+def _resolve_provider(args: argparse.Namespace) -> str:
+    provider = getattr(args, "provider", None)
+    if provider:
+        return provider
+
+    print("Which provider?")
+    for i, p in enumerate(PROVIDERS, 1):
+        print(f"  [{i}] {p}")
+    choice = input(f"Select [1-{len(PROVIDERS)}]: ").strip()
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(PROVIDERS):
+            return PROVIDERS[idx]
+    except ValueError:
+        if choice.lower() in PROVIDERS:
+            return choice.lower()
+    return "langfuse"
+
+
 def _add_scope_flags(parser: argparse.ArgumentParser) -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--global", dest="global_", action="store_true",
@@ -45,17 +67,40 @@ def _add_scope_flags(parser: argparse.ArgumentParser) -> None:
                        help="Write to .claude/settings.local.json")
 
 
+def _is_provider_dep_missing(provider: str) -> bool:
+    """Check if provider dependencies are installed."""
+    try:
+        if provider == "langfuse":
+            import langfuse  # noqa: F401
+        elif provider == "otlp":
+            import opentelemetry  # noqa: F401
+        return False
+    except ImportError:
+        return True
+
+
+def _check_provider_deps(provider: str) -> None:
+    """Warn if provider dependencies are not installed."""
+    if _is_provider_dep_missing(provider):
+        print(f"  WARNING: Dependencies for '{provider}' not found.")
+        print(f"  Run: pip install otel-hooks[{provider}]")
+
+
 def cmd_enable(args: argparse.Namespace) -> int:
     scope = _resolve_scope(args)
-    print(f"Enabling tracing hooks ({scope.value})...")
+    provider = _resolve_provider(args)
+    print(f"Enabling tracing hooks ({scope.value}, provider={provider})...")
+
+    # Verify provider dependencies are installed
+    _check_provider_deps(provider)
 
     cfg = s.load_settings(scope)
     cfg = s.register_hook(cfg)
+    cfg = s.set_env(cfg, "OTEL_HOOKS_PROVIDER", provider)
+    cfg = s.set_env(cfg, "OTEL_HOOKS_ENABLED", "true")
 
-    if s.get_env(cfg, "TRACE_TO_LANGFUSE") != "true":
-        cfg = s.set_env(cfg, "TRACE_TO_LANGFUSE", "true")
-
-    for key in ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_BASE_URL"]:
+    env_keys = s.env_keys_for_provider(provider)
+    for key in env_keys:
         if not s.get_env(cfg, key):
             if "SECRET" in key and scope is Scope.PROJECT:
                 print(f"  {key}: skipped (use --local or --global for secrets)")
@@ -76,7 +121,7 @@ def cmd_disable(args: argparse.Namespace) -> int:
 
     cfg = s.load_settings(scope)
     cfg = s.unregister_hook(cfg)
-    cfg = s.set_env(cfg, "TRACE_TO_LANGFUSE", "false")
+    cfg = s.set_env(cfg, "OTEL_HOOKS_ENABLED", "false")
     s.save_settings(cfg, scope)
 
     print(f"Disabled. Settings written to {s.settings_path(scope)}")
@@ -99,13 +144,17 @@ def cmd_status(args: argparse.Namespace) -> int:
 def _print_scope_status(scope: Scope) -> None:
     cfg = s.load_settings(scope)
     enabled = s.is_enabled(cfg, scope)
+    provider = s.get_provider(cfg, scope)
     path = s.settings_path(scope)
 
     print(f"[{scope.value}] {path}")
     print(f"  Status: {'enabled' if enabled else 'disabled'}")
+    print(f"  Provider: {provider or '(not set)'}")
     print(f"  Hook registered: {s.is_hook_registered(cfg)}")
     print(f"  Environment:")
-    for key, value in s.get_env_status(cfg, scope).items():
+
+    env_status = s.get_env_status(cfg, scope)
+    for key, value in env_status.items():
         masked = _mask(value) if "SECRET" in key and value else value
         print(f"    {key}: {masked or '(not set)'}")
 
@@ -113,18 +162,32 @@ def _print_scope_status(scope: Scope) -> None:
 def cmd_doctor(args: argparse.Namespace) -> int:
     scope = _resolve_scope(args)
     cfg = s.load_settings(scope)
+    provider = s.get_provider(cfg, scope)
     issues: list[str] = []
 
     if not s.is_hook_registered(cfg):
         issues.append("Hook not registered in settings")
 
+    if not s.is_enabled(cfg, scope):
+        issues.append("OTEL_HOOKS_ENABLED is not 'true'")
+
+    if not provider:
+        issues.append("OTEL_HOOKS_PROVIDER not set")
+
+    if provider:
+        dep_missing = _is_provider_dep_missing(provider)
+        if dep_missing:
+            issues.append(f"Dependencies for '{provider}' not installed (pip install otel-hooks[{provider}])")
+
     env = s.get_env_status(cfg, scope)
-    if env.get("TRACE_TO_LANGFUSE") != "true":
-        issues.append("TRACE_TO_LANGFUSE is not 'true'")
-    if not env.get("LANGFUSE_PUBLIC_KEY"):
-        issues.append("LANGFUSE_PUBLIC_KEY not set")
-    if not env.get("LANGFUSE_SECRET_KEY"):
-        issues.append("LANGFUSE_SECRET_KEY not set")
+    if provider == "langfuse":
+        if not env.get("LANGFUSE_PUBLIC_KEY"):
+            issues.append("LANGFUSE_PUBLIC_KEY not set")
+        if not env.get("LANGFUSE_SECRET_KEY"):
+            issues.append("LANGFUSE_SECRET_KEY not set")
+    elif provider == "otlp":
+        if not env.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+            issues.append("OTEL_EXPORTER_OTLP_ENDPOINT not set")
 
     if not issues:
         print("No issues found.")
@@ -139,9 +202,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         return 1
 
     cfg = s.register_hook(cfg)
-    if env.get("TRACE_TO_LANGFUSE") != "true":
-        cfg = s.set_env(cfg, "TRACE_TO_LANGFUSE", "true")
-    for key in ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"]:
+    if not s.is_enabled(cfg, scope):
+        cfg = s.set_env(cfg, "OTEL_HOOKS_ENABLED", "true")
+
+    if not provider:
+        provider = _resolve_provider(args)
+        cfg = s.set_env(cfg, "OTEL_HOOKS_PROVIDER", provider)
+
+    for key in s.env_keys_for_provider(provider or ""):
         if not env.get(key):
             prompt_fn = getpass.getpass if "SECRET" in key else input
             value = prompt_fn(f"  {key}: ").strip()
@@ -149,6 +217,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 cfg = s.set_env(cfg, key, value)
     s.save_settings(cfg, scope)
     print("Fixed.")
+
+    if provider and _is_provider_dep_missing(provider):
+        print(f"\n  NOTE: Install provider dependencies: pip install otel-hooks[{provider}]")
+
     return 0
 
 
@@ -166,12 +238,13 @@ def _mask(value: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="otel-hooks",
-        description="Claude Code tracing hooks for Langfuse observability",
+        description="Claude Code tracing hooks for observability",
     )
     sub = parser.add_subparsers(dest="command")
 
     p_enable = sub.add_parser("enable", help="Enable tracing hooks")
     _add_scope_flags(p_enable)
+    p_enable.add_argument("--provider", choices=PROVIDERS, help="Provider to use")
 
     p_disable = sub.add_parser("disable", help="Disable tracing hooks")
     _add_scope_flags(p_disable)

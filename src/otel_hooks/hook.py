@@ -1,9 +1,9 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["langfuse"]
+# dependencies = []
 # ///
 """
-Claude Code -> Langfuse hook
+Claude Code -> observability hook (multi-provider)
 """
 
 import json
@@ -16,20 +16,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# --- Langfuse import (fail-open) ---
-try:
-    from langfuse import Langfuse, propagate_attributes
-except Exception:
-    sys.exit(0)
-
 # --- Paths ---
 STATE_DIR = Path.home() / ".claude" / "state"
-LOG_FILE = STATE_DIR / "langfuse_hook.log"
-STATE_FILE = STATE_DIR / "langfuse_state.json"
-LOCK_FILE = STATE_DIR / "langfuse_state.lock"
+LOG_FILE = STATE_DIR / "otel_hook.log"
+STATE_FILE = STATE_DIR / "otel_hook_state.json"
+LOCK_FILE = STATE_DIR / "otel_hook_state.lock"
 
-DEBUG = os.environ.get("CC_LANGFUSE_DEBUG", "").lower() == "true"
-MAX_CHARS = int(os.environ.get("CC_LANGFUSE_MAX_CHARS", "20000"))
+DEBUG = os.environ.get("OTEL_HOOKS_DEBUG", "").lower() == "true"
+MAX_CHARS = int(os.environ.get("OTEL_HOOKS_MAX_CHARS", "20000"))
 
 # ----------------- Logging -----------------
 def _log(level: str, message: str) -> None:
@@ -326,101 +320,64 @@ def build_turns(messages: List[Dict[str, Any]]) -> List[Turn]:
     flush_turn()
     return turns
 
-# ----------------- Langfuse emit -----------------
-def _tool_calls_from_assistants(assistant_msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    calls: List[Dict[str, Any]] = []
-    for am in assistant_msgs:
-        for tu in iter_tool_uses(get_content(am)):
-            tid = tu.get("id") or ""
-            calls.append({
-                "id": str(tid),
-                "name": tu.get("name") or "unknown",
-                "input": tu.get("input") if isinstance(tu.get("input"), (dict, list, str, int, float, bool)) else {},
-            })
-    return calls
+# ----------------- Provider factory -----------------
+def _create_provider(name: str):
+    """Create a provider instance. Returns None on failure (fail-open)."""
+    if name == "langfuse":
+        try:
+            from otel_hooks.providers.langfuse import LangfuseProvider
+        except ImportError:
+            error("langfuse not installed. Run: pip install otel-hooks[langfuse]")
+            return None
+        public_key = os.environ.get("LANGFUSE_PUBLIC_KEY")
+        secret_key = os.environ.get("LANGFUSE_SECRET_KEY")
+        host = os.environ.get("LANGFUSE_BASE_URL", "https://cloud.langfuse.com")
+        if not public_key or not secret_key:
+            return None
+        try:
+            return LangfuseProvider(public_key=public_key, secret_key=secret_key, host=host)
+        except Exception:
+            return None
 
-def emit_turn(langfuse: Langfuse, session_id: str, turn_num: int, turn: Turn, transcript_path: Path) -> None:
-    user_text_raw = extract_text(get_content(turn.user_msg))
-    user_text, user_text_meta = truncate_text(user_text_raw)
-    last_assistant = turn.assistant_msgs[-1]
-    assistant_text_raw = extract_text(get_content(last_assistant))
-    assistant_text, assistant_text_meta = truncate_text(assistant_text_raw)
-    model = get_model(turn.assistant_msgs[0])
-    tool_calls = _tool_calls_from_assistants(turn.assistant_msgs)
+    if name == "otlp":
+        try:
+            from otel_hooks.providers.otlp import OTLPProvider
+        except ImportError:
+            error("opentelemetry not installed. Run: pip install otel-hooks[otlp]")
+            return None
+        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+        if not endpoint:
+            debug("OTEL_EXPORTER_OTLP_ENDPOINT not set")
+            return None
+        headers_raw = os.environ.get("OTEL_EXPORTER_OTLP_HEADERS", "")
+        headers: dict[str, str] = {}
+        if headers_raw:
+            for pair in headers_raw.split(","):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    headers[k.strip()] = v.strip()
+        try:
+            return OTLPProvider(endpoint=endpoint, headers=headers)
+        except Exception:
+            return None
 
-    for c in tool_calls:
-        if c["id"] and c["id"] in turn.tool_results_by_id:
-            out_raw = turn.tool_results_by_id[c["id"]]
-            out_str = out_raw if isinstance(out_raw, str) else json.dumps(out_raw, ensure_ascii=False)
-            out_trunc, out_meta = truncate_text(out_str)
-            c["output"] = out_trunc
-            c["output_meta"] = out_meta
-        else:
-            c["output"] = None
-
-    with propagate_attributes(
-        session_id=session_id,
-        trace_name=f"Claude Code - Turn {turn_num}",
-        tags=["claude-code"],
-    ):
-        with langfuse.start_as_current_span(
-            name=f"Claude Code - Turn {turn_num}",
-            input={"role": "user", "content": user_text},
-            metadata={
-                "source": "claude-code",
-                "session_id": session_id,
-                "turn_number": turn_num,
-                "transcript_path": str(transcript_path),
-                "user_text": user_text_meta,
-            },
-        ) as trace_span:
-            with langfuse.start_as_current_observation(
-                name="Claude Response",
-                as_type="generation",
-                model=model,
-                input={"role": "user", "content": user_text},
-                output={"role": "assistant", "content": assistant_text},
-                metadata={
-                    "assistant_text": assistant_text_meta,
-                    "tool_count": len(tool_calls),
-                },
-            ):
-                pass
-
-            for tc in tool_calls:
-                in_obj = tc["input"]
-                if isinstance(in_obj, str):
-                    in_obj, in_meta = truncate_text(in_obj)
-                else:
-                    in_meta = None
-                with langfuse.start_as_current_observation(
-                    name=f"Tool: {tc['name']}",
-                    as_type="tool",
-                    input=in_obj,
-                    metadata={
-                        "tool_name": tc["name"],
-                        "tool_id": tc["id"],
-                        "input_meta": in_meta,
-                        "output_meta": tc.get("output_meta"),
-                    },
-                ) as tool_obs:
-                    tool_obs.update(output=tc.get("output"))
-
-            trace_span.update(output={"role": "assistant", "content": assistant_text})
+    debug(f"Unknown provider: {name}")
+    return None
 
 # ----------------- Main -----------------
 def main() -> int:
     start = time.time()
     debug("Hook started")
 
-    if os.environ.get("TRACE_TO_LANGFUSE", "").lower() != "true":
+    if os.environ.get("OTEL_HOOKS_ENABLED", "").lower() != "true":
         return 0
 
-    public_key = os.environ.get("CC_LANGFUSE_PUBLIC_KEY") or os.environ.get("LANGFUSE_PUBLIC_KEY")
-    secret_key = os.environ.get("CC_LANGFUSE_SECRET_KEY") or os.environ.get("LANGFUSE_SECRET_KEY")
-    host = os.environ.get("CC_LANGFUSE_BASE_URL") or os.environ.get("LANGFUSE_BASE_URL") or "https://cloud.langfuse.com"
+    provider_name = os.environ.get("OTEL_HOOKS_PROVIDER", "").lower()
+    if not provider_name:
+        return 0
 
-    if not public_key or not secret_key:
+    provider = _create_provider(provider_name)
+    if not provider:
         return 0
 
     payload = read_hook_payload()
@@ -432,11 +389,6 @@ def main() -> int:
 
     if not transcript_path.exists():
         debug(f"Transcript path does not exist: {transcript_path}")
-        return 0
-
-    try:
-        langfuse = Langfuse(public_key=public_key, secret_key=secret_key, host=host)
-    except Exception:
         return 0
 
     try:
@@ -459,25 +411,25 @@ def main() -> int:
                 emitted += 1
                 turn_num = ss.turn_count + emitted
                 try:
-                    emit_turn(langfuse, session_id, turn_num, t, transcript_path)
+                    provider.emit_turn(session_id, turn_num, t, transcript_path)
                 except Exception as e:
                     debug(f"emit_turn failed: {e}")
             ss.turn_count += emitted
             write_session_state(state, key, ss)
             save_state(state)
         try:
-            langfuse.flush()
+            provider.flush()
         except Exception:
             pass
         dur = time.time() - start
-        info(f"Processed {emitted} turns in {dur:.2f}s (session={session_id})")
+        info(f"Processed {emitted} turns in {dur:.2f}s (session={session_id}, provider={provider_name})")
         return 0
     except Exception as e:
         debug(f"Unexpected failure: {e}")
         return 0
     finally:
         try:
-            langfuse.shutdown()
+            provider.shutdown()
         except Exception:
             pass
 

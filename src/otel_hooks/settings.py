@@ -15,12 +15,31 @@ class Scope(str, Enum):
 
 HOOK_COMMAND = "otel-hooks hook"
 
-ENV_KEYS = [
-    "TRACE_TO_LANGFUSE",
+LANGFUSE_ENV_KEYS = [
     "LANGFUSE_PUBLIC_KEY",
     "LANGFUSE_SECRET_KEY",
     "LANGFUSE_BASE_URL",
 ]
+
+OTLP_ENV_KEYS = [
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_EXPORTER_OTLP_HEADERS",
+]
+
+COMMON_ENV_KEYS = [
+    "OTEL_HOOKS_PROVIDER",
+    "OTEL_HOOKS_ENABLED",
+]
+
+ENV_KEYS = COMMON_ENV_KEYS + LANGFUSE_ENV_KEYS + OTLP_ENV_KEYS
+
+
+def env_keys_for_provider(provider: str) -> list[str]:
+    if provider == "langfuse":
+        return LANGFUSE_ENV_KEYS
+    if provider == "otlp":
+        return OTLP_ENV_KEYS
+    return []
 
 
 def settings_path(scope: Scope) -> Path:
@@ -64,11 +83,18 @@ def is_hook_registered(settings: Optional[Dict[str, Any]] = None, scope: Scope =
 def is_enabled(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> bool:
     if settings is None:
         settings = load_settings(scope)
+    if not is_hook_registered(settings):
+        return False
     env = settings.get("env", {})
-    return (
-        env.get("TRACE_TO_LANGFUSE", "").lower() == "true"
-        and is_hook_registered(settings)
-    )
+    return env.get("OTEL_HOOKS_ENABLED", "").lower() == "true"
+
+
+def get_provider(settings: Optional[Dict[str, Any]] = None, scope: Scope = Scope.GLOBAL) -> Optional[str]:
+    if settings is None:
+        settings = load_settings(scope)
+    env = settings.get("env", {})
+    provider = env.get("OTEL_HOOKS_PROVIDER", "").lower()
+    return provider or None
 
 
 def register_hook(settings: Dict[str, Any]) -> Dict[str, Any]:

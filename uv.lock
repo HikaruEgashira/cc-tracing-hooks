@@ -382,14 +382,24 @@ wheels = [
 
 [[package]]
 name = "otel-hooks"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
-dependencies = [
+
+[package.optional-dependencies]
+langfuse = [
     { name = "langfuse" },
+]
+otlp = [
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "langfuse" }]
+requires-dist = [
+    { name = "langfuse", marker = "extra == 'langfuse'" },
+    { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'otlp'" },
+    { name = "opentelemetry-sdk", marker = "extra == 'otlp'" },
+]
 
 [[package]]
 name = "packaging"

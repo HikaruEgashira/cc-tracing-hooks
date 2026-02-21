@@ -1,10 +1,17 @@
 [project]
 name = "otel-hooks"
-version = "0.2.1"
-description = "Claude Code tracing hooks for Langfuse observability"
+version = "0.3.0"
+description = "Claude Code tracing hooks for observability (Langfuse, OTLP, and more)"
 license = "MIT"
 requires-python = ">=3.12"
-dependencies = ["langfuse"]
+dependencies = []
+
+[project.optional-dependencies]
+langfuse = ["langfuse"]
+otlp = [
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp-proto-http",
+]
 
 [project.scripts]
 otel-hooks = "otel_hooks.cli:main"
