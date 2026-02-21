@@ -45,6 +45,11 @@ When neither flag is given, you are prompted to choose.
 | `CC_LANGFUSE_DEBUG` | Set `true` to enable debug logging |
 | `CC_LANGFUSE_MAX_CHARS` | Truncation limit per message (default: `20000`) |
 
+## References
+
+- [Claude Code Integration with Langfuse](https://langfuse.com/integrations/other/claude-code) – Langfuse official guide for Claude Code tracing
+- [Entire CLI](https://github.com/entireio/cli) – AI agent session capture for git workflows
+
 ## License
 
 MIT
