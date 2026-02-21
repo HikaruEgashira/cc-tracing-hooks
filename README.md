@@ -46,7 +46,14 @@ otel-hooks disable --tool <name>
 
 ## Providers
 
-### Langfuse
+| Provider | Install |
+|----------|---------|
+| Langfuse | `pip install otel-hooks[langfuse]` |
+| OTLP | `pip install otel-hooks[otlp]` |
+| Datadog | `pip install otel-hooks[datadog]` |
+
+<details>
+<summary>Langfuse</summary>
 
 ```bash
 pip install otel-hooks[langfuse]
@@ -59,7 +66,10 @@ otel-hooks enable --tool claude --provider langfuse
 | `LANGFUSE_SECRET_KEY` | Secret key |
 | `LANGFUSE_BASE_URL` | Host (default: `https://cloud.langfuse.com`) |
 
-### OTLP
+</details>
+
+<details>
+<summary>OTLP</summary>
 
 ```bash
 pip install otel-hooks[otlp]
@@ -71,7 +81,10 @@ otel-hooks enable --tool claude --provider otlp
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint URL |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Headers (`key=value,key=value`) |
 
-### Datadog
+</details>
+
+<details>
+<summary>Datadog</summary>
 
 ```bash
 pip install otel-hooks[datadog]
@@ -87,7 +100,10 @@ Requires a running [Datadog Agent](https://docs.datadoghq.com/agent/).
 | `DD_AGENT_HOST` | Agent host (default: `localhost`) |
 | `DD_TRACE_AGENT_PORT` | Agent port (default: `8126`) |
 
-### Common
+</details>
+
+<details>
+<summary>Common environment variables</summary>
 
 | Variable | Description |
 |---|---|
@@ -95,6 +111,8 @@ Requires a running [Datadog Agent](https://docs.datadoghq.com/agent/).
 | `OTEL_HOOKS_ENABLED` | Set `true` to enable |
 | `OTEL_HOOKS_DEBUG` | Set `true` to enable debug logging |
 | `OTEL_HOOKS_MAX_CHARS` | Truncation limit per message (default: `20000`) |
+
+</details>
 
 ## References
 
