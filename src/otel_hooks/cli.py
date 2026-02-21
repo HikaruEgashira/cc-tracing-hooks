@@ -44,23 +44,10 @@ def _resolve_scope(args: argparse.Namespace, tool_cfg: ToolConfig | None = None)
 
     if tool_cfg:
         scopes = tool_cfg.scopes()
-        if len(scopes) == 1:
-            return scopes[0]
+        if Scope.GLOBAL in scopes:
+            return Scope.GLOBAL
+        return scopes[0]
 
-    accessible = os.environ.get("ACCESSIBLE")
-    if accessible:
-        print("Scope: [g]lobal, [p]roject, or [l]ocal?")
-    else:
-        print("Where should hooks be configured?")
-        print("  [g] global   (~/.claude/settings.json)")
-        print("  [p] project  (.claude/settings.json)")
-        print("  [l] local    (.claude/settings.local.json)")
-
-    choice = input("Select [g/p/l]: ").strip().lower()
-    if choice in ("p", "project"):
-        return Scope.PROJECT
-    if choice in ("l", "local"):
-        return Scope.LOCAL
     return Scope.GLOBAL
 
 

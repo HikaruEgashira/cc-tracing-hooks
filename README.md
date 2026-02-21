@@ -40,14 +40,6 @@ otel-hooks doctor          # detect and fix issues
 otel-hooks disable --tool <name>
 ```
 
-### Scope flags (Claude Code)
-
-```bash
-otel-hooks enable --tool claude --global   # ~/.claude/settings.json
-otel-hooks enable --tool claude --project  # .claude/settings.json
-otel-hooks enable --tool claude --local    # .claude/settings.local.json
-```
-
 ## How it works
 
 `enable` registers a hook in each tool's configuration that runs `otel-hooks hook` at session end. The hook reads the session transcript incrementally and emits traces to the configured provider. Codex CLI uses native OTLP support instead of hooks.
