@@ -1,8 +1,17 @@
 # cc-tracing-hooks
 
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HikaruEgashira/cc-tracing-hooks/badge)](https://scorecard.dev/viewer/?uri=github.com/HikaruEgashira/cc-tracing-hooks)
+[![PyPI](https://img.shields.io/pypi/v/cc-tracing-hooks)](https://pypi.org/project/cc-tracing-hooks/)
+
 Claude Code の全セッションを [Langfuse](https://langfuse.com) にトレースする hooks プラグイン。
 
 ## Install
+
+```bash
+mise use -g pipx:cc-tracing-hooks
+```
+
+or
 
 ```bash
 pip install cc-tracing-hooks
