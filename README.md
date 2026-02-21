@@ -19,7 +19,7 @@ pipx otel-hooks
 
 ## Supported tools
 
-| Tool | Support | Scope¹ | Setup |
+| Tool | Support | Scope | Setup |
 |------|---------|--------|-------|
 | [Claude Code](https://code.claude.com/docs/en/hooks) | Trace | Global / Project | `otel-hooks enable --tool claude` |
 | [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Project | `otel-hooks enable --tool cursor` |

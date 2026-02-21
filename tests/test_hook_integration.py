@@ -47,6 +47,23 @@ class _FailingProvider(_StubProvider):
         raise RuntimeError("emit failed")
 
 
+class _MetricFailingProvider(_StubProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.metric_attempts = 0
+
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None:
+        self.metric_attempts += 1
+        raise RuntimeError("emit metric failed")
+
+
 class HookIntegrationTest(unittest.TestCase):
     def test_run_hook_emits_once_and_skips_already_processed_lines(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -151,6 +168,24 @@ class HookIntegrationTest(unittest.TestCase):
             rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: None)
 
             self.assertEqual(rc, 0)
+
+    def test_run_hook_flushes_and_shuts_down_when_metric_emit_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            payload = {"hook_event_name": "PreToolUse", "tool_name": "bash", "cwd": str(root)}
+            config = {
+                "provider": "langfuse",
+                "debug": False,
+                "state_dir": str(root / "state"),
+            }
+
+            provider = _MetricFailingProvider()
+            rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
+
+            self.assertEqual(rc, 0)
+            self.assertEqual(provider.metric_attempts, 1)
+            self.assertTrue(provider.flush_called)
+            self.assertTrue(provider.shutdown_called)
 
     def test_run_hook_does_not_advance_turn_count_when_emit_fails(self) -> None:
         with tempfile.TemporaryDirectory() as td:
