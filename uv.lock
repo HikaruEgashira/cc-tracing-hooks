@@ -33,17 +33,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cc-tracing-hooks"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "langfuse" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "langfuse" }]
-
-[[package]]
 name = "certifi"
 version = "2026.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -390,6 +379,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/91/df/553f93ed38bf22f4b
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7a/5e/5958555e09635d09b75de3c4f8b9cae7335ca545d77392ffe7331534c402/opentelemetry_semantic_conventions-0.60b1-py3-none-any.whl", hash = "sha256:9fa8c8b0c110da289809292b0591220d3a7b53c1526a23021e977d68597893fb", size = 219982 },
 ]
+
+[[package]]
+name = "otel-hooks"
+version = "0.2.0"
+source = { editable = "." }
+dependencies = [
+    { name = "langfuse" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "langfuse" }]
 
 [[package]]
 name = "packaging"

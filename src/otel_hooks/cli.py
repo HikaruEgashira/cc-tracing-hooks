@@ -1,4 +1,4 @@
-"""CLI for cc-tracing-hooks."""
+"""CLI for otel-hooks."""
 
 import argparse
 import getpass
@@ -154,7 +154,7 @@ def _mask(value: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="cc-tracing-hooks",
+        prog="otel-hooks",
         description="Claude Code tracing hooks for Langfuse observability",
     )
     sub = parser.add_subparsers(dest="command")

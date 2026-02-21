@@ -12,7 +12,7 @@ class Scope(str, Enum):
     LOCAL = "local"
 
 
-HOOK_COMMAND = "cc-tracing-hooks hook"
+HOOK_COMMAND = "otel-hooks hook"
 
 ENV_KEYS = [
     "TRACE_TO_LANGFUSE",
