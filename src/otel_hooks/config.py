@@ -34,7 +34,6 @@ def _read_json(path: Path) -> Dict[str, Any]:
 # Mapping: config key → (section, field) → env var name
 _ENV_OVERRIDES: list[tuple[str, str]] = [
     ("provider", "OTEL_HOOKS_PROVIDER"),
-    ("enabled", "OTEL_HOOKS_ENABLED"),
     ("debug", "OTEL_HOOKS_DEBUG"),
     ("max_chars", "OTEL_HOOKS_MAX_CHARS"),
     ("state_dir", "OTEL_HOOKS_STATE_DIR"),
@@ -86,9 +85,7 @@ def _apply_env_overrides(merged: Dict[str, Any]) -> None:
     for config_key, env_var in _ENV_OVERRIDES:
         val = os.environ.get(env_var)
         if val:
-            if config_key == "enabled":
-                merged[config_key] = val.lower() == "true"
-            elif config_key == "max_chars":
+            if config_key == "max_chars":
                 try:
                     merged[config_key] = int(val)
                 except ValueError:

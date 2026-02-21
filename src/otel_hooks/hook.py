@@ -87,9 +87,6 @@ def run_hook(
     def warn(msg: str) -> None:
         _log(log_file, "WARN", msg)
 
-    if not config.get("enabled", False):
-        return 0
-
     provider_name = config.get("provider", "")
     if not provider_name:
         return 0

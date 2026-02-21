@@ -1,9 +1,10 @@
 """CLI for otel-hooks."""
 
 import argparse
-import getpass
 import sys
 from importlib.metadata import version
+
+import questionary
 
 from . import config as cfg
 from .tools import Scope, available_tools, get_tool, ToolConfig
@@ -22,20 +23,10 @@ def _resolve_tools(args: argparse.Namespace) -> list[str]:
     if tool:
         return [tool]
 
-    print("Which tool?")
-    for i, t in enumerate(TOOL_CHOICES, 1):
-        print(f"  [{i}] {t}")
-    choice = input(f"Select [1-{len(TOOL_CHOICES)}]: ").strip()
-    try:
-        idx = int(choice) - 1
-        if 0 <= idx < len(TOOL_CHOICES):
-            selected = TOOL_CHOICES[idx]
-            return list(TOOLS) if selected == "all" else [selected]
-    except ValueError:
-        if choice.lower() in TOOL_CHOICES:
-            selected = choice.lower()
-            return list(TOOLS) if selected == "all" else [selected]
-    return ["claude"]
+    selected = questionary.select("Which tool?", choices=TOOL_CHOICES).ask()
+    if selected is None:
+        return ["claude"]
+    return list(TOOLS) if selected == "all" else [selected]
 
 
 def _resolve_scope(args: argparse.Namespace, tool_cfg: ToolConfig | None = None) -> Scope:
@@ -60,18 +51,8 @@ def _resolve_provider(args: argparse.Namespace) -> str:
     if provider:
         return provider
 
-    print("Which provider?")
-    for i, p in enumerate(PROVIDERS, 1):
-        print(f"  [{i}] {p}")
-    choice = input(f"Select [1-{len(PROVIDERS)}]: ").strip()
-    try:
-        idx = int(choice) - 1
-        if 0 <= idx < len(PROVIDERS):
-            return PROVIDERS[idx]
-    except ValueError:
-        if choice.lower() in PROVIDERS:
-            return choice.lower()
-    return "langfuse"
+    selected = questionary.select("Which provider?", choices=PROVIDERS).ask()
+    return selected or "langfuse"
 
 
 def _add_scope_flags(parser: argparse.ArgumentParser) -> None:
@@ -98,15 +79,15 @@ def _enable_codex(args: argparse.Namespace) -> int:
     cfg = codex.load_settings(Scope.GLOBAL)
 
     if provider == "langfuse":
-        public_key = input("  LANGFUSE_PUBLIC_KEY: ").strip()
-        secret_key = getpass.getpass("  LANGFUSE_SECRET_KEY: ").strip()
-        base_url = input("  LANGFUSE_BASE_URL [https://cloud.langfuse.com]: ").strip()
-        if not base_url:
-            base_url = "https://cloud.langfuse.com"
+        public_key = questionary.text("LANGFUSE_PUBLIC_KEY:").ask() or ""
+        secret_key = questionary.password("LANGFUSE_SECRET_KEY:").ask() or ""
+        base_url = questionary.text(
+            "LANGFUSE_BASE_URL:", default="https://cloud.langfuse.com"
+        ).ask() or "https://cloud.langfuse.com"
         cfg = codex.enable_langfuse(cfg, public_key, secret_key, base_url)
     elif provider == "otlp":
-        endpoint = input("  OTEL_EXPORTER_OTLP_ENDPOINT: ").strip()
-        headers = input("  OTEL_EXPORTER_OTLP_HEADERS (k=v,k=v): ").strip()
+        endpoint = questionary.text("OTEL_EXPORTER_OTLP_ENDPOINT:").ask() or ""
+        headers = questionary.text("OTEL_EXPORTER_OTLP_HEADERS (k=v,k=v):").ask() or ""
         cfg = codex.enable_otlp(cfg, endpoint, headers)
     else:
         print(f"Provider '{provider}' is not supported for codex. Use langfuse or otlp.")
@@ -137,7 +118,6 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
     config_scope = Scope.PROJECT if scope is Scope.PROJECT else Scope.GLOBAL
     otel_cfg = cfg.load_raw_config(config_scope)
     otel_cfg["provider"] = provider
-    otel_cfg["enabled"] = True
 
     provider_keys = cfg.env_keys_for_provider(provider)
     if provider_keys:
@@ -149,8 +129,8 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
                 if "SECRET" in env_var and scope is Scope.PROJECT:
                     print(f"  {env_var}: skipped (use --local or --global for secrets)")
                     continue
-                prompt_fn = getpass.getpass if "SECRET" in env_var else input
-                value = prompt_fn(f"  {env_var}: ").strip()
+                ask_fn = questionary.password if "SECRET" in env_var else questionary.text
+                value = ask_fn(f"{env_var}:").ask() or ""
                 if value:
                     section[field] = value
 
@@ -189,13 +169,6 @@ def cmd_disable(args: argparse.Namespace) -> int:
             print(f"Warning: failed to disable {tool_name}: {e}")
             rc = 1
 
-    # Update otel-hooks config
-    if tools:
-        config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
-        otel_cfg = cfg.load_raw_config(config_scope)
-        otel_cfg["enabled"] = False
-        cfg.save_config(otel_cfg, config_scope)
-
     return rc
 
 
@@ -223,9 +196,7 @@ def _print_tool_status(tool_name: str) -> None:
     # Show shared otel-hooks config
     otel_config = cfg.load_config()
     provider = otel_config.get("provider", "(not set)")
-    enabled = otel_config.get("enabled", False)
     print(f"  Provider: {provider}")
-    print(f"  Enabled: {enabled}")
     if provider and provider in ("langfuse", "otlp", "datadog"):
         pcfg = otel_config.get(provider, {})
         for field, env_var in cfg.env_keys_for_provider(provider):
@@ -245,10 +216,6 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
 
     otel_config = cfg.load_config()
     provider = otel_config.get("provider")
-    enabled = otel_config.get("enabled", False)
-
-    if not enabled:
-        issues.append("otel-hooks not enabled (set enabled=true in config)")
 
     if not provider:
         issues.append("provider not set in otel-hooks config")
@@ -272,8 +239,7 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
     for issue in issues:
         print(f"  - {issue}")
 
-    answer = input("\nFix automatically? [y/N] ").strip().lower()
-    if answer != "y":
+    if not questionary.confirm("Fix automatically?", default=False).ask():
         return 1
 
     # Fix hook registration
@@ -284,8 +250,6 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
     # Fix otel-hooks config
     config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
     otel_cfg = cfg.load_raw_config(config_scope)
-    otel_cfg["enabled"] = True
-
     if not provider:
         provider = _resolve_provider(args)
     otel_cfg["provider"] = provider
@@ -293,8 +257,8 @@ def _doctor_one(tool_name: str, args: argparse.Namespace) -> int:
     for field, env_var in cfg.env_keys_for_provider(provider or ""):
         section = otel_cfg.setdefault(provider, {})
         if not section.get(field):
-            prompt_fn = getpass.getpass if "SECRET" in env_var else input
-            value = prompt_fn(f"  {env_var}: ").strip()
+            ask_fn = questionary.password if "SECRET" in env_var else questionary.text
+            value = ask_fn(f"{env_var}:").ask() or ""
             if value:
                 section[field] = value
 
