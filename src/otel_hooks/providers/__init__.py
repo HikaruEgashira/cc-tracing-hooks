@@ -18,5 +18,13 @@ class Provider(Protocol):
         transcript_path: Path | None,
         source_tool: str = "",
     ) -> None: ...
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None: ...
     def flush(self) -> None: ...
     def shutdown(self) -> None: ...

@@ -18,6 +18,9 @@ class ToolsRegistryAndConfigTest(unittest.TestCase):
         self.assertIn("claude", tools)
         self.assertIn("codex", tools)
         self.assertIn("cursor", tools)
+        self.assertIn("copilot", tools)
+        self.assertIn("kiro", tools)
+        self.assertIn("opencode", tools)
         self.assertEqual(tools, sorted(tools))
 
     def test_get_tool_returns_config_instance(self) -> None:

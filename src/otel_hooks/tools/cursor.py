@@ -67,7 +67,7 @@ class CursorConfig:
         session_id = payload.get("conversation_id")
         if not isinstance(session_id, str) or not session_id:
             return None
-        return HookEvent(
+        return HookEvent.trace(
             source_tool=self.name,
             session_id=session_id,
             transcript_path=_extract_transcript_path(payload),

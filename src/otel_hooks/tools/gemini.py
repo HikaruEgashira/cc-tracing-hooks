@@ -80,4 +80,8 @@ class GeminiConfig:
         if "timestamp" not in payload:
             return None
         tp = _extract_transcript_path(payload)
-        return HookEvent(source_tool=self.name, session_id=session_id, transcript_path=tp or None)
+        return HookEvent.trace(
+            source_tool=self.name,
+            session_id=session_id,
+            transcript_path=tp or None,
+        )

@@ -64,6 +64,32 @@ class OTLPProvider:
                 ):
                     pass
 
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None:
+        attrs: dict[str, str | float] = {
+            "metric.name": metric_name,
+            "metric.value": metric_value,
+            "gen_ai.system": "otel-hooks",
+        }
+        if source_tool:
+            attrs["source_tool"] = source_tool
+        if session_id:
+            attrs["session.id"] = session_id
+        if attributes:
+            for k, v in attributes.items():
+                attrs[f"metric.attr.{k}"] = v
+        with self._tracer.start_as_current_span(
+            f"Metric - {metric_name}",
+            attributes=attrs,
+        ):
+            pass
+
     def flush(self) -> None:
         self._provider.force_flush()
 

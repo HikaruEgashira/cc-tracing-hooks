@@ -141,9 +141,11 @@ def _enable_one(tool_name: str, args: argparse.Namespace) -> int:
 
     provider_keys = cfg.env_keys_for_provider(provider)
     if provider_keys:
+        merged = cfg.load_config()
+        merged_section = merged.get(provider, {})
         section = otel_cfg.setdefault(provider, {})
         for field, env_var in provider_keys:
-            if not section.get(field):
+            if not section.get(field) and not merged_section.get(field):
                 if "SECRET" in env_var and scope is Scope.PROJECT:
                     print(f"  {env_var}: skipped (use --local or --global for secrets)")
                     continue

@@ -87,4 +87,4 @@ class ClineConfig:
         task_id = payload.get("taskId")
         if not isinstance(task_id, str) or not task_id:
             return None
-        return HookEvent(source_tool=self.name, session_id=task_id, transcript_path=None)
+        return HookEvent.trace(source_tool=self.name, session_id=task_id, transcript_path=None)

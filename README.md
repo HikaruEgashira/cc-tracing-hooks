@@ -19,16 +19,16 @@ pipx otel-hooks
 
 ## Supported tools
 
-| Tool | Mechanism | Setup |
-|------|-----------|-------|
-| [Claude Code](https://code.claude.com/docs/en/hooks) | Stop hook → transcript parsing | `otel-hooks enable --tool claude` |
-| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Stop hook (v1.7+ beta) | `otel-hooks enable --tool cursor` |
-| [Codex CLI](https://developers.openai.com/codex/config-reference) | Native OTLP (`~/.codex/config.toml`) | `otel-hooks enable --tool codex` |
-| [OpenCode](https://opencode.ai/docs/plugins/) | `session_completed` hook | `otel-hooks enable --tool opencode` |
-| [GitHub Copilot](https://docs.github.com/en/copilot/reference/hooks-configuration) | `sessionEnd` hook (CLI & VS Code) | `otel-hooks enable --tool copilot` |
-| [Gemini CLI](https://geminicli.com/docs/hooks/) | `SessionEnd` hook | `otel-hooks enable --tool gemini` |
-| [Kiro](https://kiro.dev/docs/cli/hooks/) | `stop` hook (agent config) | `otel-hooks enable --tool kiro` |
-| [Cline](https://docs.cline.bot/customization/hooks) | `TaskComplete` script | `otel-hooks enable --tool cline` |
+| Tool | Support | Mechanism | Setup |
+|------|---------|-----------|-------|
+| [Claude Code](https://code.claude.com/docs/en/hooks) | Trace | Stop hook → transcript parsing | `otel-hooks enable --tool claude` |
+| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Stop hook (v1.7+ beta) | `otel-hooks enable --tool cursor` |
+| [Codex CLI](https://developers.openai.com/codex/config-reference) | Trace | Native OTLP (`~/.codex/config.toml`) | `otel-hooks enable --tool codex` |
+| [OpenCode](https://opencode.ai/docs/plugins/) | Trace + Metrics | Plugin event stream (`opencode/plugin/otel-hooks.js`) | `otel-hooks enable --tool opencode` |
+| [GitHub Copilot](https://docs.github.com/en/copilot/reference/hooks-configuration) | Metrics | Hook events (`UserPromptSubmit/PreToolUse/PostToolUse/SessionEnd`) | `otel-hooks enable --tool copilot` |
+| [Kiro](https://kiro.dev/docs/cli/hooks/) | Metrics | Hook events (`userPromptSubmit/preToolUse/postToolUse/stop`) | `otel-hooks enable --tool kiro` |
+| [Gemini CLI](https://geminicli.com/docs/hooks/) | Trace | `SessionEnd` hook | `otel-hooks enable --tool gemini` |
+| [Cline](https://docs.cline.bot/customization/hooks) | Trace | `TaskComplete` script | `otel-hooks enable --tool cline` |
 
 ## Usage
 
@@ -42,7 +42,7 @@ otel-hooks disable --tool <name>
 
 ## How it works
 
-`enable` registers a hook in each tool's configuration that runs `otel-hooks hook` at session end. The hook reads the session transcript incrementally and emits traces to the configured provider. Provider settings are stored in a unified otel-hooks config file, shared across all tools. Codex CLI uses native OTLP support instead of hooks.
+`enable` registers tool-specific integration that runs `otel-hooks hook`. Trace-capable tools provide transcript/event data for turn reconstruction. Metrics-only tools emit coarse hook events (prompt/tool/session level). Provider settings are stored in a unified otel-hooks config file, shared across all tools. Codex CLI uses native OTLP support instead of hooks.
 
 ## Configuration
 

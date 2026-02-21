@@ -66,6 +66,35 @@ class LangfuseProvider:
 
                 trace_span.update(output={"role": "assistant", "content": payload.assistant_text})
 
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None:
+        sid = session_id or "metrics"
+        metadata: dict[str, Any] = {
+            "source": "otel-hooks",
+            "metric_name": metric_name,
+            "metric_value": metric_value,
+            "attributes": attributes or {},
+        }
+        if source_tool:
+            metadata["source_tool"] = source_tool
+        with propagate_attributes(
+            session_id=sid,
+            trace_name=f"Metric - {metric_name}",
+            tags=["otel-hooks", "metric"],
+        ):
+            with self._langfuse.start_as_current_span(
+                name=f"Metric - {metric_name}",
+                input={"value": metric_value},
+                metadata=metadata,
+            ):
+                pass
+
     def flush(self) -> None:
         self._langfuse.flush()
 

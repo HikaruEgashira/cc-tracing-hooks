@@ -13,11 +13,22 @@ from otel_hooks import hook
 class _StubProvider:
     def __init__(self) -> None:
         self.emitted: list[tuple[str, int]] = []
+        self.metrics: list[tuple[str, float, str]] = []
         self.flush_called = False
         self.shutdown_called = False
 
     def emit_turn(self, session_id: str, turn_num: int, turn, transcript_path: Path | None, source_tool: str = "") -> None:
         self.emitted.append((session_id, turn_num))
+
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None:
+        self.metrics.append((metric_name, metric_value, source_tool))
 
     def flush(self) -> None:
         self.flush_called = True
@@ -101,6 +112,26 @@ class HookIntegrationTest(unittest.TestCase):
             self.assertEqual(len(state), 1)
             saved = next(iter(state.values()))
             self.assertEqual(saved["turn_count"], 1)
+
+    def test_run_hook_emits_metrics_for_metrics_only_event(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            payload = {"hook_event_name": "PreToolUse", "tool_name": "bash", "cwd": str(root)}
+            config = {
+                "enabled": True,
+                "provider": "langfuse",
+                "debug": False,
+                "state_dir": str(root / "state"),
+            }
+
+            provider = _StubProvider()
+            rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
+
+            self.assertEqual(rc, 0)
+            self.assertEqual(provider.emitted, [])
+            self.assertEqual(provider.metrics, [("tool_started", 1.0, "copilot")])
+            self.assertTrue(provider.flush_called)
+            self.assertTrue(provider.shutdown_called)
 
     def test_run_hook_returns_zero_when_provider_is_not_created(self) -> None:
         with tempfile.TemporaryDirectory() as td:

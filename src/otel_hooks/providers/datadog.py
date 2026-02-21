@@ -70,6 +70,34 @@ class DatadogProvider:
                         }
                     )
 
+    def emit_metric(
+        self,
+        metric_name: str,
+        metric_value: float,
+        attributes: dict[str, str] | None = None,
+        source_tool: str = "",
+        session_id: str = "",
+    ) -> None:
+        with tracer.trace(
+            "ai_session.metric",
+            resource=metric_name,
+            service="otel-hooks",
+            span_type="custom",
+        ) as metric_span:
+            tags: dict[str, str] = {
+                "metric.name": metric_name,
+                "metric.value": str(metric_value),
+                "gen_ai.system": "otel-hooks",
+            }
+            if source_tool:
+                tags["source_tool"] = source_tool
+            if session_id:
+                tags["session.id"] = session_id
+            if attributes:
+                for k, v in attributes.items():
+                    tags[f"metric.attr.{k}"] = v
+            metric_span.set_tags(tags)
+
     def flush(self) -> None:
         tracer.flush()
 

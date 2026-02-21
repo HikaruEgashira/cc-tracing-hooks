@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from otel_hooks.tools import parse_hook_event
+from otel_hooks.tools import SupportKind, parse_hook_event
 from otel_hooks.domain.transcript import build_turns, decode_jsonl_lines
 from otel_hooks.providers.factory import create_provider
 from otel_hooks.runtime.state import (
@@ -89,26 +89,49 @@ def run_hook(
     if not provider_name:
         return 0
 
-    provider = provider_factory(provider_name, config)
-    if not provider:
-        return 0
-
     event = parse_hook_event(payload, warn_fn=warn)
 
     if event is None:
         debug("No matching adapter for payload; exiting.")
         return 0
 
-    if event.transcript_path is not None and not event.transcript_path.exists():
-        debug("Transcript file not found; exiting.")
-        return 0
+    if event.kind is SupportKind.TRACE:
+        if event.transcript_path is not None and not event.transcript_path.exists():
+            debug("Transcript file not found; exiting.")
+            return 0
+        if event.transcript_path is None:
+            debug(f"No transcript path for {event.source_tool}; session-only trace not yet supported.")
+            return 0
 
-    if event.transcript_path is None:
-        debug(f"No transcript path for {event.source_tool}; session-only trace not yet supported.")
+    provider = provider_factory(provider_name, config)
+    if not provider:
         return 0
 
     emitted = 0
     try:
+        if event.kind is SupportKind.METRICS:
+            try:
+                provider.emit_metric(
+                    event.metric_name,
+                    event.metric_value,
+                    event.metric_attributes or {},
+                    event.source_tool,
+                    event.session_id,
+                )
+                emitted = 1
+            except Exception as e:
+                debug(f"emit_metric failed: {e}")
+            try:
+                provider.flush()
+            except Exception:
+                pass
+            duration = time.time() - start
+            info(
+                f"Processed metric {event.metric_name} in {duration:.2f}s "
+                f"(session={event.session_id or '-'}, provider={provider_name})"
+            )
+            return 0
+
         with FileLock(runtime_state_paths.lock_file):
             state = load_state(runtime_state_paths.state_file)
             key = state_key(event.session_id, str(event.transcript_path))
@@ -128,12 +151,19 @@ def run_hook(
                 return 0
 
             for turn in turns:
-                emitted += 1
-                turn_num = ss.turn_count + emitted
+                turn_num = ss.turn_count + emitted + 1
                 try:
-                    provider.emit_turn(event.session_id, turn_num, turn, event.transcript_path, event.source_tool)
+                    provider.emit_turn(
+                        event.session_id,
+                        turn_num,
+                        turn,
+                        event.transcript_path,
+                        event.source_tool,
+                    )
                 except Exception as e:
                     debug(f"emit_turn failed: {e}")
+                    continue
+                emitted += 1
 
             ss.turn_count += emitted
             write_session_state(state, key, ss)

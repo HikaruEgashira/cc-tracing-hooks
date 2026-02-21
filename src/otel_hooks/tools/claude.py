@@ -83,7 +83,7 @@ class ClaudeConfig:
             payload.get("session"), dict
         ):
             return None
-        return HookEvent(
+        return HookEvent.trace(
             source_tool=self.name,
             session_id=session_id,
             transcript_path=_extract_transcript_path(payload),

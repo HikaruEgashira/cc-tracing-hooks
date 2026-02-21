@@ -16,11 +16,49 @@ class Scope(str, Enum):
     LOCAL = "local"
 
 
+class SupportKind(str, Enum):
+    TRACE = "trace"
+    METRICS = "metrics"
+
+
 @dataclass(frozen=True)
 class HookEvent:
     source_tool: str
+    kind: SupportKind
     session_id: str
     transcript_path: Path | None
+    metric_name: str = ""
+    metric_value: float = 0.0
+    metric_attributes: dict[str, str] | None = None
+
+    @classmethod
+    def trace(cls, *, source_tool: str, session_id: str, transcript_path: Path | None) -> "HookEvent":
+        return cls(
+            source_tool=source_tool,
+            kind=SupportKind.TRACE,
+            session_id=session_id,
+            transcript_path=transcript_path,
+        )
+
+    @classmethod
+    def metric(
+        cls,
+        *,
+        source_tool: str,
+        metric_name: str,
+        metric_value: float = 1.0,
+        metric_attributes: dict[str, str] | None = None,
+        session_id: str = "",
+    ) -> "HookEvent":
+        return cls(
+            source_tool=source_tool,
+            kind=SupportKind.METRICS,
+            session_id=session_id,
+            transcript_path=None,
+            metric_name=metric_name,
+            metric_value=metric_value,
+            metric_attributes=metric_attributes,
+        )
 
 
 @runtime_checkable
@@ -78,7 +116,7 @@ def _ensure_registered() -> None:
 
 # Tools with more specific payload matching should be tried first.
 # Claude matches broadly on session_id, so more specific tools go first.
-_PARSE_ORDER: tuple[str, ...] = ("cursor", "gemini", "cline", "codex", "claude")
+_PARSE_ORDER: tuple[str, ...] = ("opencode", "cursor", "gemini", "kiro", "copilot", "cline", "codex", "claude")
 
 
 def parse_hook_event(

@@ -137,4 +137,4 @@ class CodexConfig:
         thread_id = payload.get("thread-id")
         if not isinstance(thread_id, str) or not thread_id:
             return None
-        return HookEvent(source_tool=self.name, session_id=thread_id, transcript_path=None)
+        return HookEvent.trace(source_tool=self.name, session_id=thread_id, transcript_path=None)
