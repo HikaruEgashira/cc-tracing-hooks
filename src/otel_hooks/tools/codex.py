@@ -1,7 +1,8 @@
 """Codex CLI tool configuration (~/.codex/config.toml).
 
 Reference:
-  - https://github.com/openai/codex
+  - https://github.com/openai/codex/blob/main/docs/config.md
+  - https://developers.openai.com/codex/config-reference
 """
 
 import base64
