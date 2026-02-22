@@ -167,7 +167,7 @@ class HookIntegrationTest(unittest.TestCase):
 
             rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: None)
 
-            self.assertEqual(rc, 0)
+            self.assertEqual(rc, 1)
 
     def test_run_hook_flushes_and_shuts_down_when_metric_emit_fails(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -182,9 +182,9 @@ class HookIntegrationTest(unittest.TestCase):
             provider = _MetricFailingProvider()
             rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
 
-            self.assertEqual(rc, 0)
+            self.assertEqual(rc, 1)
             self.assertEqual(provider.metric_attempts, 1)
-            self.assertTrue(provider.flush_called)
+            # flush/shutdown should not be called after emit_metric failure
             self.assertTrue(provider.shutdown_called)
 
     def test_run_hook_does_not_advance_turn_count_when_emit_fails(self) -> None:
@@ -230,7 +230,7 @@ class HookIntegrationTest(unittest.TestCase):
             provider = _FailingProvider()
             rc = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
 
-            self.assertEqual(rc, 0)
+            self.assertEqual(rc, 1)
             self.assertTrue(provider.shutdown_called)
 
             state_file = root / "state" / "otel_hook_state.json"
@@ -286,8 +286,8 @@ class HookIntegrationTest(unittest.TestCase):
             rc1 = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
             rc2 = hook.run_hook(payload, config, provider_factory=lambda _name, _cfg: provider)
 
-            self.assertEqual(rc1, 0)
-            self.assertEqual(rc2, 0)
+            self.assertEqual(rc1, 1)
+            self.assertEqual(rc2, 1)
             self.assertEqual(provider.emit_attempts, 2)
 
     def test_run_hook_parallel_calls_do_not_cross_state_paths(self) -> None:

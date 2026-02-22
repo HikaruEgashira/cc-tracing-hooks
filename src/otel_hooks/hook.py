@@ -39,6 +39,8 @@ def _log(log_file: Path, level: str, message: str) -> None:
         append_line(log_file, f"{ts} [{level}] {message}\n")
     except Exception:
         pass
+    if level in ("WARN", "ERROR"):
+        print(f"otel-hooks: {message}", file=sys.stderr)
 
 
 def _resolve_state_paths(config: dict[str, Any]) -> StatePaths:
@@ -108,7 +110,8 @@ def run_hook(
 
     provider = provider_factory(provider_name, config)
     if not provider:
-        return 0
+        warn(f"Failed to create provider: {provider_name}")
+        return 1
 
     emitted = 0
     try:
@@ -123,11 +126,13 @@ def run_hook(
                 )
                 emitted = 1
             except Exception as e:
-                debug(f"emit_metric failed: {e}")
+                warn(f"emit_metric failed: {e}")
+                return 1
             try:
                 provider.flush()
-            except Exception:
-                pass
+            except Exception as e:
+                warn(f"flush failed: {e}")
+                return 1
             duration = time.time() - start
             info(
                 f"Processed metric {event.metric_name} in {duration:.2f}s "
@@ -168,7 +173,7 @@ def run_hook(
                         event.source_tool,
                     )
                 except Exception as e:
-                    debug(f"emit_turn failed: {e}")
+                    warn(f"emit_turn failed: {e}")
                     emit_failed = True
                     break
                 emitted += 1
@@ -185,18 +190,25 @@ def run_hook(
 
         try:
             provider.flush()
-        except Exception:
-            pass
+        except Exception as e:
+            warn(f"flush failed: {e}")
+            return 1
 
         duration = time.time() - start
+        if emit_failed:
+            warn(
+                f"Partial failure: {emitted} turns emitted in {duration:.2f}s "
+                f"(session={event.session_id}, provider={provider_name})"
+            )
+            return 1
         info(
             f"Processed {emitted} turns in {duration:.2f}s "
             f"(session={event.session_id}, provider={provider_name})"
         )
         return 0
     except Exception as e:
-        debug(f"Unexpected failure: {e}")
-        return 0
+        warn(f"Unexpected failure: {e}")
+        return 1
     finally:
         try:
             provider.shutdown()
