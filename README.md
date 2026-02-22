@@ -10,11 +10,9 @@ AI Agent hooks for llm observability.
 ## Install
 
 ```bash
-mise use -g pipx:otel-hooks
-# or
 pip install otel-hooks
 # or
-pipx otel-hooks
+uvx otel-hooks
 ```
 
 ## Supported tools
