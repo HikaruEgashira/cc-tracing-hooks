@@ -51,7 +51,7 @@ class ClaudeConfig:
             for hook in group.get("hooks", []):
                 if cmd in hook.get("command", ""):
                     return settings
-        stop.append({"hooks": [{"type": "command", "command": cmd}]})
+        stop.append({"hooks": [{"type": "command", "command": cmd, "async": True}]})
         return settings
 
     def unregister_hook(self, settings: Dict[str, Any]) -> Dict[str, Any]:
