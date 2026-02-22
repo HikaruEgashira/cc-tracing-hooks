@@ -1,6 +1,6 @@
 [project]
 name = "otel-hooks"
-version = "0.10.4"
+version = "0.10.5"
 description = "AI coding tools tracing hooks for observability (Langfuse, OTLP, and more)"
 license = "MIT"
 requires-python = ">=3.12"
