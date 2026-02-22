@@ -22,7 +22,7 @@ pipx otel-hooks
 | Tool | Support | Scope | Setup |
 |------|---------|--------|-------|
 | [Claude Code](https://code.claude.com/docs/en/hooks) | Trace | Global / Project | `otel-hooks enable --tool claude` |
-| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Project | `otel-hooks enable --tool cursor` |
+| [Cursor](https://cursor.com/ja/docs/agent/hooks) | Trace | Global / Project | `otel-hooks enable --tool cursor` |
 | [Codex CLI](https://developers.openai.com/codex/config-reference) | Trace | Global | `otel-hooks enable --tool codex` |
 | [OpenCode](https://opencode.ai/docs/plugins/) | Trace | Project | `otel-hooks enable --tool opencode` |
 | [Gemini CLI](https://geminicli.com/docs/hooks/) | Trace | Global / Project | `otel-hooks enable --tool gemini` |

@@ -20,9 +20,11 @@ class CursorConfig:
         return "cursor"
 
     def scopes(self) -> list[Scope]:
-        return [Scope.PROJECT]
+        return [Scope.GLOBAL, Scope.PROJECT]
 
     def settings_path(self, scope: Scope) -> Path:
+        if scope is Scope.GLOBAL:
+            return Path.home() / ".cursor" / "hooks.json"
         return Path.cwd() / ".cursor" / "hooks.json"
 
     def load_settings(self, scope: Scope) -> Dict[str, Any]:
