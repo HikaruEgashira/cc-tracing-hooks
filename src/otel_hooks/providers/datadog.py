@@ -33,7 +33,7 @@ class DatadogProvider:
             tags["source_tool"] = source_tool
         with tracer.trace(
             "ai_session.turn",
-            resource=f"Turn {turn_num}",
+            resource=f"{source_tool} - Turn {turn_num}" if source_tool else f"Turn {turn_num}",
             service="otel-hooks",
             span_type="llm",
         ) as root_span:

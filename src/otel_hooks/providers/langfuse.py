@@ -28,13 +28,17 @@ class LangfuseProvider:
             metadata["transcript_path"] = str(transcript_path)
         if source_tool:
             metadata["source_tool"] = source_tool
+        span_name = f"{source_tool} - Turn {turn_num}" if source_tool else f"AI Session - Turn {turn_num}"
+        tags = ["otel-hooks"]
+        if source_tool:
+            tags.append(source_tool)
         with propagate_attributes(
             session_id=session_id,
-            trace_name=f"AI Session - Turn {turn_num}",
-            tags=["otel-hooks"],
+            trace_name=span_name,
+            tags=tags,
         ):
             with self._langfuse.start_as_current_span(
-                name=f"AI Session - Turn {turn_num}",
+                name=span_name,
                 input={"role": "user", "content": payload.user_text},
                 metadata=metadata,
             ) as trace_span:

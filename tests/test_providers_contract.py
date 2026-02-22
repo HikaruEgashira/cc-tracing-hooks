@@ -291,7 +291,7 @@ class ProviderContractTest(unittest.TestCase):
         self.assertEqual(fake_provider.resource["service.name"], "otel-hooks")
         self.assertEqual(fake_provider.processors[0].exporter.endpoint, "http://collector")
         self.assertEqual(fake_provider.processors[0].exporter.headers, {"x-auth": "abc"})
-        self.assertEqual(spans[0].payload["name"], "AI Session - Turn 1")
+        self.assertEqual(spans[0].payload["name"], "claude - Turn 1")
         self.assertEqual(spans[0].payload["attributes"]["source_tool"], "claude")
         self.assertEqual(spans[2].payload["name"], "Tool: read")
         self.assertEqual(spans[3].payload["name"], "Metric - tool_started")

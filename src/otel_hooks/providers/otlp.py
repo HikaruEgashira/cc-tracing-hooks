@@ -37,8 +37,9 @@ class OTLPProvider:
             attrs["transcript_path"] = str(transcript_path)
         if source_tool:
             attrs["source_tool"] = source_tool
+        span_name = f"{source_tool} - Turn {turn_num}" if source_tool else f"AI Session - Turn {turn_num}"
         with self._tracer.start_as_current_span(
-            f"AI Session - Turn {turn_num}",
+            span_name,
             attributes=attrs,
         ):
             with self._tracer.start_as_current_span(

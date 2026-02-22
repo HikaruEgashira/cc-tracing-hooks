@@ -477,24 +477,16 @@ wheels = [
 
 [[package]]
 name = "otel-hooks"
-version = "0.9.1"
+version = "0.10.1"
 source = { editable = "." }
 dependencies = [
+    { name = "ddtrace" },
+    { name = "langfuse" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
     { name = "questionary" },
     { name = "rich" },
     { name = "tomli-w" },
-]
-
-[package.optional-dependencies]
-datadog = [
-    { name = "ddtrace" },
-]
-langfuse = [
-    { name = "langfuse" },
-]
-otlp = [
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-sdk" },
 ]
 
 [package.dev-dependencies]
@@ -504,10 +496,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ddtrace", marker = "extra == 'datadog'" },
-    { name = "langfuse", marker = "extra == 'langfuse'" },
-    { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'otlp'" },
-    { name = "opentelemetry-sdk", marker = "extra == 'otlp'" },
+    { name = "ddtrace" },
+    { name = "langfuse" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-sdk" },
     { name = "questionary", specifier = ">=2.1.1" },
     { name = "rich", specifier = ">=14.3.3" },
     { name = "tomli-w", specifier = ">=1.2.0" },
