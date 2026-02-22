@@ -241,8 +241,25 @@ def _migrate_env_var_to_tool_flag(settings: dict, tool_name: str) -> None:
                 item[key] = new_cmd
 
 
+def _detect_runner_prefix() -> str:
+    """Detect if running via uvx/pipx and return the appropriate command prefix.
+
+    argv[0] contains the script path, which reveals the installation method:
+    - uvx: temporary venv path containing 'uvx' → "uvx "
+    - pipx: venv path containing 'pipx' → "pipx run "
+    - pip install / uv tool install: binary on PATH, no prefix needed
+    """
+    argv0 = sys.argv[0] if sys.argv else ""
+    if "uvx" in argv0:
+        return "uvx "
+    if "pipx" in argv0:
+        return "pipx run "
+    return ""
+
+
 def _hook_command_for_provider(provider: str) -> str:
-    return f"otel-hooks hook --provider {provider}"
+    prefix = _detect_runner_prefix()
+    return f"{prefix}otel-hooks hook --provider {provider}"
 
 
 def _enable_one(
