@@ -156,7 +156,6 @@ def _write_provider_config_for_scope(
     skip_project_secrets: bool,
 ) -> None:
     otel_cfg = cfg.load_raw_config(config_scope)
-    otel_cfg["provider"] = provider
 
     provider_keys = cfg.env_keys_for_provider(provider)
     if provider_keys:
@@ -317,6 +316,44 @@ def cmd_disable(args: argparse.Namespace) -> int:
     )
 
 
+def _extract_providers_from_settings(tool_cfg: ToolConfig, scope: Scope) -> list[str]:
+    """Extract provider names from registered hook commands in tool settings."""
+    import re
+
+    settings = tool_cfg.load_settings(scope)
+    providers: list[str] = []
+
+    # Collect all command strings from hook settings
+    commands: list[str] = []
+    hooks_section = settings.get("hooks", {})
+    for _event_name, hook_list in hooks_section.items():
+        if isinstance(hook_list, list):
+            for item in hook_list:
+                if isinstance(item, dict):
+                    # Flat format: {"command": "..."}
+                    cmd = item.get("command", "")
+                    if cmd:
+                        commands.append(cmd)
+                    # Nested format: {"hooks": [{"command": "..."}]}
+                    for sub in item.get("hooks", []):
+                        if isinstance(sub, dict):
+                            cmd = sub.get("command", "")
+                            if cmd:
+                                commands.append(cmd)
+
+    for cmd in commands:
+        if "otel-hooks hook" not in cmd:
+            continue
+        m = re.search(r"--provider\s+(\w+)", cmd)
+        if m:
+            providers.append(m.group(1))
+        elif "--provider" not in cmd:
+            # Legacy: bare "otel-hooks hook" without --provider flag
+            providers.append("(default)")
+
+    return providers
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     from rich.table import Table
 
@@ -324,13 +361,15 @@ def cmd_status(args: argparse.Namespace) -> int:
     tools = list(TOOLS) if not tool or tool == "all" else [tool]
 
     otel_config = cfg.load_config()
-    provider = otel_config.get("provider", "(not set)")
 
     table = Table(title="otel-hooks status")
     table.add_column("Tool")
     table.add_column("Scope")
     table.add_column("Hook")
+    table.add_column("Providers")
     table.add_column("Path")
+
+    all_providers: set[str] = set()
 
     for name in tools:
         tool_cfg = get_tool(name)
@@ -338,44 +377,60 @@ def cmd_status(args: argparse.Namespace) -> int:
             tool_settings = tool_cfg.load_settings(scope)
             registered = tool_cfg.is_hook_registered(tool_settings)
             path = str(tool_cfg.settings_path(scope))
+            providers = _extract_providers_from_settings(tool_cfg, scope)
+            all_providers.update(p for p in providers if p != "(default)")
             status = "[green]registered[/green]" if registered else "[dim]not registered[/dim]"
-            table.add_row(name, scope.value, status, path)
+            provider_label = ", ".join(providers) if providers else "-"
+            table.add_row(name, scope.value, status, provider_label, path)
 
     console.print(table)
-    console.print(f"Provider: [bold]{provider}[/bold]")
 
-    if provider and provider in ("langfuse", "otlp", "datadog"):
-        pcfg = otel_config.get(provider, {})
-        for field, env_var in cfg.env_keys_for_provider(provider):
-            val = pcfg.get(field, "")
-            masked = _mask(val) if "SECRET" in env_var and val else (val or "(not set)")
-            console.print(f"  {env_var}: {masked}")
+    # Include providers that have config sections (langfuse/otlp/datadog keys)
+    for p in PROVIDERS:
+        if isinstance(otel_config.get(p), dict) and otel_config[p]:
+            all_providers.add(p)
+
+    if not all_providers:
+        console.print("Provider: [dim](not set)[/dim]")
+    else:
+        console.print(f"Provider(s): [bold]{', '.join(sorted(all_providers))}[/bold]")
+
+    for provider in sorted(all_providers):
+        if provider in PROVIDERS:
+            pcfg = otel_config.get(provider, {})
+            console.print(f"\n  [{provider}]")
+            for field, env_var in cfg.env_keys_for_provider(provider):
+                val = pcfg.get(field, "")
+                masked = _mask(val) if "SECRET" in env_var and val else (val or "(not set)")
+                console.print(f"    {env_var}: {masked}")
 
     return 0
 
 
-def _collect_provider_issues(otel_config: dict[str, object]) -> tuple[str | None, list[str]]:
+def _collect_provider_issues(
+    otel_config: dict[str, object],
+    providers: list[str],
+) -> list[str]:
     issues: list[str] = []
-    provider_raw = otel_config.get("provider")
-    provider = provider_raw if isinstance(provider_raw, str) and provider_raw else None
 
-    if not provider:
-        issues.append("provider not set in otel-hooks config")
-        return None, issues
+    if not providers:
+        issues.append("No provider registered in hooks (use --provider flag with enable)")
+        return issues
 
-    if provider == "langfuse":
-        pcfg = otel_config.get("langfuse", {})
-        if isinstance(pcfg, dict):
-            if not pcfg.get("public_key"):
-                issues.append("langfuse.public_key not set")
-            if not pcfg.get("secret_key"):
-                issues.append("langfuse.secret_key not set")
-    elif provider == "otlp":
-        pcfg = otel_config.get("otlp", {})
-        if isinstance(pcfg, dict) and not pcfg.get("endpoint"):
-            issues.append("otlp.endpoint not set")
+    for provider in providers:
+        if provider == "langfuse":
+            pcfg = otel_config.get("langfuse", {})
+            if isinstance(pcfg, dict):
+                if not pcfg.get("public_key"):
+                    issues.append("langfuse.public_key not set")
+                if not pcfg.get("secret_key"):
+                    issues.append("langfuse.secret_key not set")
+        elif provider == "otlp":
+            pcfg = otel_config.get("otlp", {})
+            if isinstance(pcfg, dict) and not pcfg.get("endpoint"):
+                issues.append("otlp.endpoint not set")
 
-    return provider, issues
+    return issues
 
 
 def _doctor_one(
@@ -389,13 +444,18 @@ def _doctor_one(
     scope = tool_cfg.scopes()[0]
     tool_settings = tool_cfg.load_settings(scope)
     issues: list[str] = []
-    provider: str | None = None
 
     if not tool_cfg.is_hook_registered(tool_settings):
         issues.append(f"Hook not registered in {tool_cfg.settings_path(scope)}")
 
+    registered_providers: list[str] = []
     if include_provider_checks:
-        provider, provider_issues = _collect_provider_issues(cfg.load_config())
+        for s in tool_cfg.scopes():
+            registered_providers.extend(_extract_providers_from_settings(tool_cfg, s))
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        registered_providers = [p for p in registered_providers if p not in seen and not seen.add(p)]  # type: ignore[func-returns-value]
+        provider_issues = _collect_provider_issues(cfg.load_config(), registered_providers)
         issues.extend(provider_issues)
 
     if not issues:
@@ -412,19 +472,22 @@ def _doctor_one(
 
     # Fix hook registration
     if not tool_cfg.is_hook_registered(tool_settings):
-        tool_settings = tool_cfg.register_hook(tool_settings)
+        providers = _resolve_providers(args)
+        for prov in providers:
+            cmd = _hook_command_for_provider(prov)
+            tool_settings = tool_cfg.register_hook(tool_settings, command=cmd)
         tool_cfg.save_settings(tool_settings, scope)
 
-    # Fix otel-hooks config
+    # Fix otel-hooks provider config
     if include_provider_checks and fix_provider_config:
         config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
-        if not provider:
-            provider = _resolve_provider(args)
-        _write_provider_config_for_scope(
-            provider=provider,
-            config_scope=config_scope,
-            skip_project_secrets=False,
-        )
+        providers_to_fix = registered_providers or _resolve_providers(args)
+        for prov in providers_to_fix:
+            _write_provider_config_for_scope(
+                provider=prov,
+                config_scope=config_scope,
+                skip_project_secrets=False,
+            )
 
     console.print("[green]Fixed.[/green]")
     return 0
@@ -440,7 +503,17 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             parallel=False,
         )
 
-    provider, provider_issues = _collect_provider_issues(cfg.load_config())
+    # Collect registered providers across all tools
+    all_registered: list[str] = []
+    for tool_name in tools:
+        tool_cfg = get_tool(tool_name)
+        for scope in tool_cfg.scopes():
+            all_registered.extend(_extract_providers_from_settings(tool_cfg, scope))
+    # Deduplicate
+    seen_provs: set[str] = set()
+    all_registered = [p for p in all_registered if p not in seen_provs and not seen_provs.add(p)]  # type: ignore[func-returns-value]
+
+    provider_issues = _collect_provider_issues(cfg.load_config(), all_registered)
     if provider_issues:
         console.print(f"[yellow]config: Found {len(provider_issues)} issue(s):[/yellow]")
         for issue in provider_issues:
@@ -448,14 +521,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         yes = getattr(args, "yes", False)
         if not yes and not _confirm("Fix automatically?"):
             return 1
-        if not provider:
-            provider = _resolve_provider(args)
+        providers_to_fix = all_registered or _resolve_providers(args)
         config_scope = Scope.PROJECT if getattr(args, "project", False) else Scope.GLOBAL
-        _write_provider_config_for_scope(
-            provider=provider,
-            config_scope=config_scope,
-            skip_project_secrets=False,
-        )
+        for prov in providers_to_fix:
+            _write_provider_config_for_scope(
+                provider=prov,
+                config_scope=config_scope,
+                skip_project_secrets=False,
+            )
         console.print("[green]config: Fixed.[/green]")
 
     # --yes 指定時のみ doctor を並列化（対話プロンプト競合を回避）

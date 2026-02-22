@@ -67,7 +67,7 @@ def _args(
 
 
 class CliBehaviorTest(unittest.TestCase):
-    def test_cmd_enable_registers_hook_and_writes_enabled_provider_config(self) -> None:
+    def test_cmd_enable_registers_hook_and_writes_provider_config(self) -> None:
         tool = _StubTool(scopes=[Scope.PROJECT])
         saved_cfg: dict[str, object] = {}
 
@@ -86,7 +86,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(tool.register_called, 1)
         self.assertEqual(tool.saved[-1][1], Scope.PROJECT)
         self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
-        self.assertEqual(saved_cfg["data"]["provider"], "datadog")
+        self.assertNotIn("provider", saved_cfg["data"])
         self.assertNotIn("enabled", saved_cfg["data"])
 
     def test_cmd_enable_all_writes_provider_config_once(self) -> None:
@@ -111,7 +111,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(cursor.register_called, 1)
         self.assertEqual(len(save_calls), 1)
         self.assertEqual(save_calls[0][1], Scope.PROJECT)
-        self.assertEqual(save_calls[0][0]["provider"], "datadog")
+        self.assertNotIn("provider", save_calls[0][0])
 
     def test_cmd_disable_unregisters_hook_without_touching_otel_config(self) -> None:
         tool = _StubTool(registered=True, scopes=[Scope.PROJECT])
@@ -144,7 +144,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(tool.register_called, 1)
         self.assertEqual(saved_cfg["scope"], Scope.PROJECT)
         self.assertNotIn("enabled", saved_cfg["data"])
-        self.assertEqual(saved_cfg["data"]["provider"], "datadog")
+        self.assertNotIn("provider", saved_cfg["data"])
 
     def test_doctor_all_yes_fixes_provider_once_and_repairs_all_hooks(self) -> None:
         claude = _StubTool(registered=False, scopes=[Scope.PROJECT])
@@ -168,7 +168,7 @@ class CliBehaviorTest(unittest.TestCase):
         self.assertEqual(cursor.register_called, 1)
         self.assertEqual(len(save_calls), 1)
         self.assertEqual(save_calls[0][1], Scope.PROJECT)
-        self.assertEqual(save_calls[0][0]["provider"], "datadog")
+        self.assertNotIn("provider", save_calls[0][0])
 
     def test_doctor_fixes_via_tui_confirm(self) -> None:
         tool = _StubTool(registered=False, scopes=[Scope.PROJECT])

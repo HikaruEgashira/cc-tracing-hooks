@@ -87,8 +87,9 @@ def run_hook(
     def warn(msg: str) -> None:
         _log(log_file, "WARN", msg)
 
-    provider_name = config.get("provider", "")
+    provider_name = config.get("provider")
     if not provider_name:
+        debug("No --provider flag; exiting.")
         return 0
 
     event = parse_hook_event(payload, warn_fn=warn)
@@ -222,9 +223,9 @@ def main() -> int:
     except Exception:
         config = {}
 
-    provider_override = _parse_provider_flag()
-    if provider_override:
-        config["provider"] = provider_override
+    provider = _parse_provider_flag()
+    if provider:
+        config["provider"] = provider
 
     payload = read_hook_payload()
     return run_hook(payload, config)

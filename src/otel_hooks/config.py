@@ -33,7 +33,6 @@ def _read_json(path: Path) -> Dict[str, Any]:
 
 # Mapping: config key → (section, field) → env var name
 _ENV_OVERRIDES: list[tuple[str, str]] = [
-    ("provider", "OTEL_HOOKS_PROVIDER"),
     ("debug", "OTEL_HOOKS_DEBUG"),
     ("max_chars", "OTEL_HOOKS_MAX_CHARS"),
     ("state_dir", "OTEL_HOOKS_STATE_DIR"),
@@ -95,10 +94,15 @@ def _apply_env_overrides(merged: Dict[str, Any]) -> None:
             else:
                 merged[config_key] = val
 
-    provider = merged.get("provider", "")
-    if provider and provider in _PROVIDER_ENV:
+    # Apply provider-specific env overrides for all configured providers
+    for provider, fields in _PROVIDER_ENV.items():
+        if provider not in merged:
+            # Only apply if env vars are actually set
+            has_env = any(os.environ.get(env_var) for _, env_var in fields)
+            if not has_env:
+                continue
         section = merged.setdefault(provider, {})
-        for field, env_var in _PROVIDER_ENV[provider]:
+        for field, env_var in fields:
             val = os.environ.get(env_var)
             if val:
                 section[field] = val
