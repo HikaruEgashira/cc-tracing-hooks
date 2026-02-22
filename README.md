@@ -3,7 +3,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/HikaruEgashira/otel-hooks/badge)](https://scorecard.dev/viewer/?uri=github.com/HikaruEgashira/otel-hooks)
 [![PyPI](https://img.shields.io/pypi/v/otel-hooks)](https://pypi.org/project/otel-hooks/)
 
-AI coding tools tracing hooks for observability.
+AI Agent hooks for llm observability.
 
 <img src="langfuse-demo.png" alt="demo" width="600" />
 
@@ -74,72 +74,15 @@ Project config overrides global. Environment variables override both.
 
 ## Providers
 
-| Provider | Install |
-|----------|---------|
-| Langfuse | `pip install otel-hooks[langfuse]` |
-| OTLP | `pip install otel-hooks[otlp]` |
-| Datadog | `pip install otel-hooks[datadog]` |
+Langfuse, OTLP, Datadog are all included — no extras needed.
 
-<details>
-<summary>Langfuse</summary>
+| Provider | Docs |
+|----------|------|
+| Langfuse | `langfuse.public_key`, `langfuse.secret_key`, `langfuse.base_url` |
+| OTLP | `otlp.endpoint`, `otlp.headers` |
+| Datadog | `datadog.service`, `datadog.env` — requires [Datadog Agent](https://docs.datadoghq.com/agent/) |
 
-```bash
-pip install otel-hooks[langfuse]
-otel-hooks enable --tool <name> --provider langfuse
-```
-
-| Config key | Env override | Description |
-|---|---|---|
-| `langfuse.public_key` | `LANGFUSE_PUBLIC_KEY` | Public key |
-| `langfuse.secret_key` | `LANGFUSE_SECRET_KEY` | Secret key |
-| `langfuse.base_url` | `LANGFUSE_BASE_URL` | Host (default: `https://cloud.langfuse.com`) |
-
-</details>
-
-<details>
-<summary>OTLP</summary>
-
-```bash
-pip install otel-hooks[otlp]
-otel-hooks enable --tool <name> --provider otlp
-```
-
-| Config key | Env override | Description |
-|---|---|---|
-| `otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint URL |
-| `otlp.headers` | `OTEL_EXPORTER_OTLP_HEADERS` | Headers (`key=value,key=value`) |
-
-</details>
-
-<details>
-<summary>Datadog</summary>
-
-```bash
-pip install otel-hooks[datadog]
-otel-hooks enable --tool <name> --provider datadog
-```
-
-Requires a running [Datadog Agent](https://docs.datadoghq.com/agent/).
-
-| Config key | Env override | Description |
-|---|---|---|
-| `datadog.service` | `DD_SERVICE` | Service name (default: `otel-hooks`) |
-| `datadog.env` | `DD_ENV` | Environment tag |
-
-</details>
-
-<details>
-<summary>Environment variable overrides</summary>
-
-Environment variables always take precedence over config files.
-
-| Variable | Description |
-|---|---|
-| `OTEL_HOOKS_PROVIDER` | `langfuse`, `otlp`, or `datadog` |
-| `OTEL_HOOKS_DEBUG` | Set `true` to enable debug logging |
-| `OTEL_HOOKS_MAX_CHARS` | Truncation limit per message (default: `20000`) |
-
-</details>
+Environment variables (`LANGFUSE_PUBLIC_KEY`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `DD_SERVICE`, etc.) override config file values. See also `OTEL_HOOKS_PROVIDER`, `OTEL_HOOKS_DEBUG`, `OTEL_HOOKS_MAX_CHARS`.
 
 ## License
 
