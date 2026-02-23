@@ -3,3 +3,5 @@ __pycache__/
 dist/
 *.egg-info/
 .coverage
+.env
+.otel-hooks.json

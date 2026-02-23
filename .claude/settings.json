@@ -3,5 +3,18 @@
     "deny": [
       "Bash(gh release create:*)"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"$CLAUDE_PROJECT_DIR\" otel-hooks hook --provider otlp",
+            "async": true
+          }
+        ]
+      }
+    ]
   }
 }
