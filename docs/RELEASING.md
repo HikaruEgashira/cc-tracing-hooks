@@ -14,14 +14,17 @@ Follow [Semantic Versioning](https://semver.org/). Use conventional commits to s
 # 1. Update version in pyproject.toml
 #    Edit: version = "X.Y.Z"
 
-# 2. Commit the version bump
-git add pyproject.toml
+# 2. Sync lockfile
+uv lock
+
+# 3. Commit the version bump
+git add pyproject.toml uv.lock
 git commit -m "chore: bump version to X.Y.Z"
 
-# 3. Tag the release
+# 4. Tag the release
 git tag vX.Y.Z
 
-# 4. Push commit and tag
+# 5. Push commit and tag
 git push --tags
 ```
 
