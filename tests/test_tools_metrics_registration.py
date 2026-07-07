@@ -106,38 +106,47 @@ class MetricsHookRegistrationTest(unittest.TestCase):
 
     def test_kiro_registers_all_metric_events(self) -> None:
         cfg = KiroConfig()
-        settings: dict[str, object] = {"hooks": {}}
+        settings: dict[str, object] = {}
 
         updated = cfg.register_hook(settings)
+        self.assertEqual(updated.get("version"), "v1")
         hooks = updated["hooks"]
+        self.assertIsInstance(hooks, list)
 
-        for event_name in ("agentSpawn", "userPromptSubmit", "preToolUse", "postToolUse", "stop"):
-            self.assertIn(event_name, hooks)
-            self.assertTrue(
-                any("otel-hooks hook" in item.get("command", "") for item in hooks[event_name])
-            )
+        registered_triggers = {
+            h["trigger"] for h in hooks if "otel-hooks hook" in h.get("action", {}).get("command", "")
+        }
+        for trigger in (
+            "SessionStart", "UserPromptSubmit", "Stop",
+            "PreToolUse", "PostToolUse",
+            "PreTaskExec", "PostTaskExec",
+            "PostFileCreate", "PostFileSave", "PostFileDelete",
+        ):
+            self.assertIn(trigger, registered_triggers, msg=f"trigger not registered: {trigger}")
 
         self.assertTrue(cfg.is_hook_registered(updated))
 
     def test_kiro_is_not_registered_when_only_stop_exists(self) -> None:
         cfg = KiroConfig()
-        settings = {"hooks": {"stop": [{"command": KIRO_HOOK_COMMAND}]}}
+        settings = {
+            "version": "v1",
+            "hooks": [{"name": "otel-hooks", "trigger": "Stop", "action": {"type": "command", "command": KIRO_HOOK_COMMAND}}],
+        }
         self.assertFalse(cfg.is_hook_registered(settings))
 
     def test_kiro_unregister_removes_registered_command_from_all_events(self) -> None:
         cfg = KiroConfig()
         settings = {
-            "hooks": {
-                "agentSpawn": [{"command": KIRO_HOOK_COMMAND}],
-                "userPromptSubmit": [{"command": KIRO_HOOK_COMMAND}],
-                "preToolUse": [{"command": KIRO_HOOK_COMMAND}],
-                "postToolUse": [{"command": KIRO_HOOK_COMMAND}],
-                "stop": [{"command": KIRO_HOOK_COMMAND}],
-            }
+            "version": "v1",
+            "hooks": [
+                {"name": "otel-hooks", "trigger": t, "action": {"type": "command", "command": KIRO_HOOK_COMMAND}}
+                for t in ("SessionStart", "UserPromptSubmit", "Stop", "PreToolUse", "PostToolUse",
+                          "PreTaskExec", "PostTaskExec", "PostFileCreate", "PostFileSave", "PostFileDelete")
+            ],
         }
 
         updated = cfg.unregister_hook(settings)
-        self.assertEqual(updated["hooks"], {})
+        self.assertEqual(updated["hooks"], [])
 
 
 if __name__ == "__main__":

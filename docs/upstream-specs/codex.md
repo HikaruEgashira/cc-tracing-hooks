@@ -1,7 +1,7 @@
 # Codex CLI Hooks Specification
 
 > Source: https://developers.openai.com/codex/config-reference
-> Snapshot: 2026-06-09
+> Snapshot: 2026-07-07
 
 ## Config Location
 
@@ -37,7 +37,8 @@ Hooks can be defined inline in `config.toml` or in `.codex/hooks.json` using the
       "hooks": [
         {
           "type": "command",
-          "command": "string"
+          "command": "string",
+          "commandWindows": "string (Windows-specific override; TOML alias: command_windows)"
         }
       ]
     }

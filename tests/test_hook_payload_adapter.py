@@ -374,6 +374,67 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.source, "cline")
         self.assertEqual(event.session_id, "t99")
 
+    def test_parse_hook_event_for_kiro_pre_task_exec(self) -> None:
+        """PreTaskExec is Kiro-specific and maps to SESSION_START (2026-07-07 spec sync)."""
+        payload = {
+            "hook_event_name": "PreTaskExec",
+            "session_id": "kiro-1",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "kiro")
+        self.assertEqual(event.type, EventType.SESSION_START)
+        self.assertEqual(event.session_id, "kiro-1")
+
+    def test_parse_hook_event_for_kiro_post_task_exec(self) -> None:
+        """PostTaskExec is Kiro-specific and maps to SESSION_END (2026-07-07 spec sync)."""
+        payload = {
+            "hook_event_name": "PostTaskExec",
+            "session_id": "kiro-2",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "kiro")
+        self.assertEqual(event.type, EventType.SESSION_END)
+
+    def test_parse_hook_event_for_kiro_post_file_create(self) -> None:
+        """PostFileCreate is Kiro-specific and maps to FILE_WRITE (2026-07-07 spec sync)."""
+        payload = {
+            "hook_event_name": "PostFileCreate",
+            "session_id": "kiro-3",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "kiro")
+        self.assertEqual(event.type, EventType.FILE_WRITE)
+
+    def test_parse_hook_event_for_kiro_post_file_save(self) -> None:
+        """PostFileSave is Kiro-specific and maps to FILE_WRITE (2026-07-07 spec sync)."""
+        payload = {
+            "hook_event_name": "PostFileSave",
+            "session_id": "kiro-4",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "kiro")
+        self.assertEqual(event.type, EventType.FILE_WRITE)
+
+    def test_parse_hook_event_for_kiro_post_file_delete(self) -> None:
+        """PostFileDelete is Kiro-specific and maps to FILE_WRITE (2026-07-07 spec sync)."""
+        payload = {
+            "hook_event_name": "PostFileDelete",
+            "session_id": "kiro-5",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "kiro")
+        self.assertEqual(event.type, EventType.FILE_WRITE)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-06-30
+> Snapshot: 2026-07-07
 
 ## Config Location
 
@@ -89,6 +89,7 @@
 ```json
 {
   "session_id": "string",
+  "prompt_id": "uuid",
   "transcript_path": "string",
   "cwd": "string",
   "permission_mode": "default|plan|acceptEdits|auto|dontAsk|bypassPermissions",
@@ -348,6 +349,7 @@
 - `$CLAUDE_CODE_REMOTE` — `"true"` in web environments
 - `$CLAUDE_EFFORT` — effort level (`low`, `medium`, `high`, `xhigh`, `max`)
 - `$CLAUDE_ENV_FILE` — env persist file (SessionStart, Setup, CwdChanged, FileChanged only)
+- `$CLAUDE_CODE_BRIDGE_SESSION_ID` — Remote Control session ID (v2.1.199+)
 
 ## Constraints
 

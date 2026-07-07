@@ -99,6 +99,12 @@ _METRIC_EVENT_MAP: dict[str, EventType] = {
     "SubagentStart": EventType.SESSION_START,
     "subagentStop": EventType.SESSION_END,
     "SubagentStop": EventType.SESSION_END,
+    # Kiro new events (2026-07-07 spec sync — v1 hooks schema)
+    "PreTaskExec": EventType.SESSION_START,
+    "PostTaskExec": EventType.SESSION_END,
+    "PostFileCreate": EventType.FILE_WRITE,
+    "PostFileSave": EventType.FILE_WRITE,
+    "PostFileDelete": EventType.FILE_WRITE,
 }
 
 
@@ -113,8 +119,13 @@ def _detect_source(payload: dict[str, Any]) -> str:
         return "codex"
     if "hook_event_name" in payload:
         event_name = str(payload["hook_event_name"])
-        # Kiro uses camelCase userPromptSubmit; Copilot uses camelCase userPromptSubmitted
-        if event_name in ("userPromptSubmit", "stop", "agentSpawn"):
+        # Kiro-specific events (not shared with other tools)
+        _KIRO_SPECIFIC = frozenset({
+            "PreTaskExec", "PostTaskExec",
+            "PostFileCreate", "PostFileSave", "PostFileDelete",
+        })
+        # Old camelCase Kiro events kept for backwards compatibility
+        if event_name in _KIRO_SPECIFIC or event_name in ("userPromptSubmit", "stop", "agentSpawn"):
             return "kiro"
         return "copilot"
     if "sessionId" in payload or "transcriptPath" in payload:
