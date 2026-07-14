@@ -77,7 +77,7 @@ _METRIC_EVENT_MAP: dict[str, EventType] = {
     "PermissionRequest": EventType.TOOL_START,
     "postToolUseFailure": EventType.TOOL_END,
     "PostToolUseFailure": EventType.TOOL_END,
-    # Copilot: fires on tool execution error before post-use (2026-06-23 spec sync)
+    # preToolUseFailure: removed from Copilot spec (2026-07-14); kept for backward compat
     "preToolUseFailure": EventType.TOOL_END,
     "PreToolUseFailure": EventType.TOOL_END,
     # Cline SDK hooks (2026-06-30 spec sync — new SDK-based event model)

@@ -19,8 +19,6 @@ _HOOK_EVENTS = (
     # Added in 2026-05-18 spec sync
     "agentStop", "notification", "permissionRequest", "postToolUseFailure",
     "preCompact", "subagentStart", "subagentStop",
-    # Added in 2026-06-23 spec sync
-    "preToolUseFailure",
 )
 _EVENT_ALIASES = {
     "sessionStart": "session_start",
@@ -44,8 +42,6 @@ _EVENT_ALIASES = {
     "PermissionRequest": "permission_request",
     "postToolUseFailure": "post_tool_use_failure",
     "PostToolUseFailure": "post_tool_use_failure",
-    "preToolUseFailure": "pre_tool_use_failure",
-    "PreToolUseFailure": "pre_tool_use_failure",
     "preCompact": "pre_compact",
     "PreCompact": "pre_compact",
     "subagentStart": "subagent_start",
