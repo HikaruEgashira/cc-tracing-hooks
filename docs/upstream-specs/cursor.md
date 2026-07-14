@@ -1,7 +1,7 @@
 # Cursor Hooks Specification
 
 > Source: https://cursor.com/ja/docs/hooks (redirects to https://cursor.com/ja/docs/hooks)
-> Snapshot: 2026-06-23
+> Snapshot: 2026-07-14
 
 ## Config Location
 
@@ -488,9 +488,9 @@ All matching hooks from all sources execute. Conflicts resolved by priority.
 
 Cloud agents execute command-based hooks from `.cursor/hooks.json` only. User-level hooks are unavailable to cloud agents.
 
-**Supported in cloud agents**: `beforeShellExecution`, `afterShellExecution`, `beforeReadFile`, `afterFileEdit`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `preCompact`
+**Supported in cloud agents**: `beforeShellExecution`, `afterShellExecution`, `beforeReadFile`, `afterFileEdit`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `beforeSubmitPrompt`, `preCompact`, `afterAgentResponse`, `afterAgentThought`, `stop`
 
-**Not supported in cloud agents**: `sessionStart`, `sessionEnd`, `beforeSubmitPrompt`, `beforeTabFileRead`, `afterTabFileEdit`, `workspaceOpen`, `beforeMCPExecution`, `afterMCPExecution`, `afterAgentResponse`, `afterAgentThought`, `stop`
+**Not supported in cloud agents**: `sessionStart`, `sessionEnd`, `beforeTabFileRead`, `afterTabFileEdit`, `workspaceOpen`, `beforeMCPExecution`, `afterMCPExecution`
 
 Team/enterprise hooks are also unavailable in cloud agents.
 

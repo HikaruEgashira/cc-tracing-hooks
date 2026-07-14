@@ -272,7 +272,7 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.type, EventType.SESSION_END)
 
     def test_parse_hook_event_for_copilot_pre_tool_use_failure(self) -> None:
-        """preToolUseFailure maps to TOOL_END (new Copilot event, 2026-06-23 spec)."""
+        """preToolUseFailure removed from Copilot spec (2026-07-14); backward-compat mapping retained."""
         payload = {
             "source_tool": "copilot",
             "hook_event_name": "preToolUseFailure",
@@ -286,7 +286,7 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.type, EventType.TOOL_END)
 
     def test_parse_hook_event_for_copilot_pre_tool_use_failure_pascal_case(self) -> None:
-        """PreToolUseFailure (PascalCase alias) also maps to TOOL_END."""
+        """PreToolUseFailure (PascalCase alias) also maps to TOOL_END (backward compat)."""
         payload = {
             "source_tool": "copilot",
             "hook_event_name": "PreToolUseFailure",

@@ -1,7 +1,7 @@
 # GitHub Copilot Hooks Specification
 
 > Source: https://docs.github.com/en/copilot/reference/hooks-configuration
-> Snapshot: 2026-06-23
+> Snapshot: 2026-07-14
 
 ## Config Location
 
@@ -67,7 +67,7 @@ Lines with `"type": "progress"` are consumed and displayed as status; they are e
 
 Optional regex patterns supported for: `notification`, `permissionRequest`, `postToolUse`, `preCompact`, `preToolUse`, `subagentStart`
 
-## Hook Events (14 total)
+## Hook Events (13 total)
 
 | Event | Has Output | Description |
 |-------|-----------|-------------|
@@ -77,13 +77,12 @@ Optional regex patterns supported for: `notification`, `permissionRequest`, `pos
 | preToolUse | Yes | Before tool execution (can deny) |
 | postToolUse | Yes | After tool execution (can modify result) |
 | postToolUseFailure | No | After a tool completes with a failure |
-| preToolUseFailure | Yes | Tool execution error (can provide recovery guidance) |
 | errorOccurred | No | Error during execution |
 | agentStop | Yes | Main agent finishes a turn (can block) |
 | notification | No | Async system notification (CLI only) |
 | permissionRequest | Yes | Before permission service runs (CLI only) |
 | preCompact | No | Context compaction is about to begin |
-| subagentStart | No | A subagent is spawned (before it runs) |
+| subagentStart | Yes | A subagent is spawned; can inject context (cannot block) |
 | subagentStop | Yes | A subagent completes (can block) |
 
 ## Per-Event Input Schemas
@@ -270,6 +269,14 @@ Note: only `deny` is processed.
     "textResultForLlm": "string"
   },
   "additionalContext": "string (optional)"
+}
+```
+
+### subagentStart
+
+```json
+{
+  "additionalContext": "string (optional, prepended to subagent prompt; cannot block)"
 }
 ```
 
