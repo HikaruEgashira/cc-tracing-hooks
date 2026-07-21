@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-07-07
+> Snapshot: 2026-07-21
 
 ## Config Location
 
@@ -248,8 +248,7 @@
 
 ### Stop
 
-- `response`: string (Claude's full response text; formerly `assistant_message`)
-- `stop_reason`: string (e.g. `end_turn`)
+- `last_assistant_message`: string (Claude's full response text; formerly `response`, before that `assistant_message`)
 
 ### SessionEnd
 
@@ -305,10 +304,17 @@
 - `hookSpecificOutput.updatedToolOutput`: string (optional, replaces tool output seen by Claude)
 - `hookSpecificOutput.additionalContext`: string (optional, appended context for Claude)
 
-### PostToolBatch / Stop / TaskCreated / TaskCompleted / PreCompact
+### PostToolBatch / TaskCreated / TaskCompleted / PreCompact
 
 - `decision`: `"block"` (optional)
 - `reason`: string
+
+### Stop (output)
+
+- `decision`: `"block"` (optional)
+- `reason`: string
+- `hookSpecificOutput.hookEventName`: `"Stop"`
+- `hookSpecificOutput.additionalContext`: string (non-error feedback injected into next turn)
 
 ### PermissionRequest
 

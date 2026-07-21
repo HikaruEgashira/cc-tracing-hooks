@@ -1,7 +1,8 @@
 # Codex CLI Hooks Specification
 
-> Source: https://developers.openai.com/codex/config-reference
-> Snapshot: 2026-07-07
+> Source: https://learn.chatgpt.com/docs/config-file/config-reference
+> (Formerly https://developers.openai.com/codex/config-reference — 308 permanent redirect as of 2026-07-21)
+> Snapshot: 2026-07-21
 
 ## Config Location
 

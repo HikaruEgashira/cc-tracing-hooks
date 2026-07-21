@@ -80,6 +80,9 @@ _METRIC_EVENT_MAP: dict[str, EventType] = {
     # preToolUseFailure: removed from Copilot spec (2026-07-14); kept for backward compat
     "preToolUseFailure": EventType.TOOL_END,
     "PreToolUseFailure": EventType.TOOL_END,
+    # Copilot new events (2026-07-21 spec sync)
+    "userPromptTransformed": EventType.PROMPT_SUBMIT,
+    "UserPromptTransformed": EventType.PROMPT_SUBMIT,
     # Cline SDK hooks (2026-06-30 spec sync — new SDK-based event model)
     "session_start": EventType.SESSION_START,
     "run_start": EventType.SESSION_START,

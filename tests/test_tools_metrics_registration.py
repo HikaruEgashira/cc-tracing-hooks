@@ -26,6 +26,8 @@ class MetricsHookRegistrationTest(unittest.TestCase):
             "sessionEnd", "errorOccurred",
             "agentStop", "notification", "permissionRequest", "postToolUseFailure",
             "preCompact", "subagentStart", "subagentStop",
+            # Added in 2026-07-21 spec sync
+            "userPromptTransformed",
         ):
             self.assertIn(event_name, hooks)
             self.assertTrue(
@@ -60,6 +62,7 @@ class MetricsHookRegistrationTest(unittest.TestCase):
                 "preCompact": [{"type": "command", "bash": COPILOT_HOOK_COMMAND}],
                 "subagentStart": [{"type": "command", "bash": COPILOT_HOOK_COMMAND}],
                 "subagentStop": [{"type": "command", "bash": COPILOT_HOOK_COMMAND}],
+                "userPromptTransformed": [{"type": "command", "bash": COPILOT_HOOK_COMMAND}],
             },
         }
 

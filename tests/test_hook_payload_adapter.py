@@ -435,6 +435,35 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.source, "kiro")
         self.assertEqual(event.type, EventType.FILE_WRITE)
 
+    def test_parse_hook_event_for_copilot_user_prompt_transformed(self) -> None:
+        """userPromptTransformed maps to PROMPT_SUBMIT (new Copilot event, 2026-07-21 spec sync)."""
+        payload = {
+            "source_tool": "copilot",
+            "hook_event_name": "userPromptTransformed",
+            "sessionId": "cp-6",
+            "cwd": "/tmp",
+            "prompt": "original user prompt",
+            "transformedPrompt": "system-transformed prompt sent to model",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "copilot")
+        self.assertEqual(event.type, EventType.PROMPT_SUBMIT)
+        self.assertEqual(event.session_id, "cp-6")
+
+    def test_parse_hook_event_for_copilot_user_prompt_transformed_pascal_case(self) -> None:
+        """UserPromptTransformed (PascalCase alias) also maps to PROMPT_SUBMIT."""
+        payload = {
+            "source_tool": "copilot",
+            "hook_event_name": "UserPromptTransformed",
+            "sessionId": "cp-7",
+            "cwd": "/tmp",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "copilot")
+        self.assertEqual(event.type, EventType.PROMPT_SUBMIT)
+
 
 if __name__ == "__main__":
     unittest.main()

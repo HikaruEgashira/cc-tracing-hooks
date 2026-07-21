@@ -19,6 +19,8 @@ _HOOK_EVENTS = (
     # Added in 2026-05-18 spec sync
     "agentStop", "notification", "permissionRequest", "postToolUseFailure",
     "preCompact", "subagentStart", "subagentStop",
+    # Added in 2026-07-21 spec sync
+    "userPromptTransformed",
 )
 _EVENT_ALIASES = {
     "sessionStart": "session_start",
@@ -48,6 +50,9 @@ _EVENT_ALIASES = {
     "SubagentStart": "subagent_start",
     "subagentStop": "subagent_stop",
     "SubagentStop": "subagent_stop",
+    # Added in 2026-07-21 spec sync
+    "userPromptTransformed": "user_prompt_transformed",
+    "UserPromptTransformed": "user_prompt_transformed",
 }
 
 

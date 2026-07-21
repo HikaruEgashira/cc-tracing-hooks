@@ -1,7 +1,7 @@
 # GitHub Copilot Hooks Specification
 
 > Source: https://docs.github.com/en/copilot/reference/hooks-configuration
-> Snapshot: 2026-07-14
+> Snapshot: 2026-07-21
 
 ## Config Location
 
@@ -67,13 +67,14 @@ Lines with `"type": "progress"` are consumed and displayed as status; they are e
 
 Optional regex patterns supported for: `notification`, `permissionRequest`, `postToolUse`, `preCompact`, `preToolUse`, `subagentStart`
 
-## Hook Events (13 total)
+## Hook Events (14 total)
 
 | Event | Has Output | Description |
 |-------|-----------|-------------|
 | sessionStart | No | New or resumed session begins |
 | sessionEnd | No | Session completes or terminates |
 | userPromptSubmitted | No | User submits a prompt |
+| userPromptTransformed | Yes | After prompt transformation, before model receives it |
 | preToolUse | Yes | Before tool execution (can deny) |
 | postToolUse | Yes | After tool execution (can modify result) |
 | postToolUseFailure | No | After a tool completes with a failure |
@@ -118,6 +119,25 @@ Optional regex patterns supported for: `notification`, `permissionRequest`, `pos
   "timestamp": "number (Unix ms)",
   "cwd": "string",
   "prompt": "string"
+}
+```
+
+### userPromptTransformed
+
+```json
+{
+  "sessionId": "string",
+  "timestamp": "number (Unix ms)",
+  "cwd": "string",
+  "prompt": "string",
+  "transformedPrompt": "string"
+}
+```
+
+Output:
+```json
+{
+  "modifiedTransformedPrompt": "string"
 }
 ```
 
