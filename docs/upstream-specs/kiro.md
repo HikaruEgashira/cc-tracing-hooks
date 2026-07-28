@@ -1,7 +1,7 @@
 # Kiro Hooks Specification
 
-> Source: https://kiro.dev/docs/hooks/
-> Snapshot: 2026-07-07
+> Source: https://kiro.dev/docs/cli/hooks/
+> Snapshot: 2026-07-28
 
 ## Config Location
 
@@ -45,6 +45,8 @@ otel-hooks writes to `otel-hooks.json` in the relevant directory.
 | `matcher` | regex | No | always-match | Filter by tool name or file path |
 | `action` | object | Yes | — | Execution instructions |
 | `timeout` | integer (seconds) | No | 60 | Command timeout (0 = disabled) |
+| `timeout_ms` | integer (ms) | No | 30000 | Hook execution timeout (alternative to `timeout`; added 2026-07-28) |
+| `cache_ttl_seconds` | integer | No | 0 | Cache successful hook results; 0 = no caching (added 2026-07-28) |
 | `enabled` | boolean | No | true | Toggle hook without deletion |
 
 ### Action Types
@@ -52,13 +54,14 @@ otel-hooks writes to `otel-hooks.json` in the relevant directory.
 - `command` — `{ "type": "command", "command": "shell command" }`
 - `agent` — `{ "type": "agent", "prompt": "agent prompt text" }` (timeout ignored)
 
-## Hook Events (10 total)
+## Hook Events (11 total)
 
 | Trigger | Activation | Matcher Type | Blockable |
 |---------|------------|--------------|-----------|
+| `AgentSpawn` | Agent activates (added 2026-07-28) | N/A | No |
 | `SessionStart` | Session begins | N/A | No |
 | `UserPromptSubmit` | User submits prompt | N/A | Yes |
-| `Stop` | Agent completes turn | N/A | No |
+| `Stop` | Agent completes turn | N/A | Yes (block decision via `{"decision": "block", "reason": "..."}`) |
 | `PreToolUse` | Before tool executes | Tool name (regex) | Yes |
 | `PostToolUse` | After tool executes | Tool name (regex) | No |
 | `PreTaskExec` | Before spec task starts | N/A | Yes |
@@ -126,6 +129,6 @@ Additional fields:
 
 - `timeout` applies to command actions only (not agent actions)
 - `timeout: 0` disables the limit
-- Blocking supported only for: PreToolUse, UserPromptSubmit, PreTaskExec
+- Blocking supported for: PreToolUse, UserPromptSubmit, PreTaskExec, Stop (via JSON `{"decision": "block", "reason": "..."}` output)
 - `SessionStart` hooks are never cached
 - Matcher field filters by tool name (PreToolUse/PostToolUse) or file path (PostFileCreate/PostFileSave/PostFileDelete) using regex

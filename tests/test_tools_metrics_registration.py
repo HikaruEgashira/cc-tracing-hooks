@@ -118,7 +118,7 @@ class MetricsHookRegistrationTest(unittest.TestCase):
             h["trigger"] for h in hooks if "otel-hooks hook" in h.get("action", {}).get("command", "")
         }
         for trigger in (
-            "SessionStart", "UserPromptSubmit", "Stop",
+            "AgentSpawn", "SessionStart", "UserPromptSubmit", "Stop",
             "PreToolUse", "PostToolUse",
             "PreTaskExec", "PostTaskExec",
             "PostFileCreate", "PostFileSave", "PostFileDelete",
@@ -141,7 +141,7 @@ class MetricsHookRegistrationTest(unittest.TestCase):
             "version": "v1",
             "hooks": [
                 {"name": "otel-hooks", "trigger": t, "action": {"type": "command", "command": KIRO_HOOK_COMMAND}}
-                for t in ("SessionStart", "UserPromptSubmit", "Stop", "PreToolUse", "PostToolUse",
+                for t in ("AgentSpawn", "SessionStart", "UserPromptSubmit", "Stop", "PreToolUse", "PostToolUse",
                           "PreTaskExec", "PostTaskExec", "PostFileCreate", "PostFileSave", "PostFileDelete")
             ],
         }
