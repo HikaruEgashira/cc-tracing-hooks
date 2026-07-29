@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-07-21
+> Snapshot: 2026-07-28
 
 ## Config Location
 
@@ -53,7 +53,7 @@
 
 | Event | Blockable | Matcher Target |
 |-------|-----------|----------------|
-| SessionStart | No | source: `startup\|resume\|clear\|compact` |
+| SessionStart | No | source: `startup\|resume\|clear\|compact\|fork` |
 | Setup | No | trigger: `init\|maintenance` |
 | InstructionsLoaded | No | load_reason: `session_start\|nested_traversal\|path_glob_match\|include\|compact` |
 | UserPromptSubmit | Yes (exit 2) | — |
@@ -106,7 +106,7 @@
 
 ### SessionStart
 
-- `source`: `startup|resume|clear|compact`
+- `source`: `startup|resume|clear|compact|fork`
 - `model`: string
 - `agent_type`: string (optional)
 - `session_title`: string (optional)
