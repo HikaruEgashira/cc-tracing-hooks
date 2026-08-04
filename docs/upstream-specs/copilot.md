@@ -1,7 +1,7 @@
 # GitHub Copilot Hooks Specification
 
 > Source: https://docs.github.com/en/copilot/reference/hooks-configuration
-> Snapshot: 2026-07-21
+> Snapshot: 2026-08-04
 
 ## Config Location
 
@@ -207,7 +207,8 @@ Output:
   "timestamp": "number (Unix ms)",
   "cwd": "string",
   "transcriptPath": "string",
-  "stopReason": "string"
+  "stopReason": "string",
+  "stop_hook_active": "boolean (true when a previous Stop hook blocked)"
 }
 ```
 
@@ -233,8 +234,11 @@ Output:
   "timestamp": "number (Unix ms)",
   "cwd": "string",
   "transcriptPath": "string",
+  "agentId": "string",
+  "agentType": "string",
   "agentName": "string",
   "agentDisplayName": "string (optional)",
+  "response": "string (subagent's final response text)",
   "stopReason": "string"
 }
 ```
@@ -300,12 +304,22 @@ Note: only `deny` is processed.
 }
 ```
 
-### agentStop / subagentStop
+### agentStop
 
 ```json
 {
   "decision": "block|allow",
   "reason": "string"
+}
+```
+
+### subagentStop
+
+```json
+{
+  "decision": "block|allow",
+  "reason": "string",
+  "modifiedResponse": "string (optional, replaces subagent response returned to parent)"
 }
 ```
 
