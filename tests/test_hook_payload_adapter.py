@@ -464,6 +464,38 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.source, "copilot")
         self.assertEqual(event.type, EventType.PROMPT_SUBMIT)
 
+    def test_parse_hook_event_for_claude_directory_added(self) -> None:
+        """DirectoryAdded maps to SESSION_END (new Claude Code event, 2026-08-04 spec sync)."""
+        payload = {
+            "source_tool": "claude",
+            "hook_event_name": "DirectoryAdded",
+            "session_id": "s1",
+            "directory_path": "/home/user/new-dir",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "claude")
+        self.assertEqual(event.type, EventType.SESSION_END)
+
+    def test_parse_hook_event_for_copilot_subagent_stop_with_new_fields(self) -> None:
+        """subagentStop payload now includes agentId, agentType, response (2026-08-04 spec sync)."""
+        payload = {
+            "source_tool": "copilot",
+            "hook_event_name": "subagentStop",
+            "sessionId": "cp-8",
+            "cwd": "/tmp",
+            "agentId": "agent-123",
+            "agentType": "general-purpose",
+            "agentName": "my-agent",
+            "response": "I completed the task.",
+            "stopReason": "end_turn",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "copilot")
+        self.assertEqual(event.type, EventType.SESSION_END)
+        self.assertEqual(event.session_id, "cp-8")
+
 
 if __name__ == "__main__":
     unittest.main()

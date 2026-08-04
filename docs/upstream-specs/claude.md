@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-07-28
+> Snapshot: 2026-08-04
 
 ## Config Location
 
@@ -49,7 +49,7 @@
 - `prompt` — LLM prompt (`prompt`, `model`)
 - `agent` — agent invocation (`prompt`, `model`) [experimental]
 
-## Hook Events (30 total)
+## Hook Events (31 total)
 
 | Event | Blockable | Matcher Target |
 |-------|-----------|----------------|
@@ -75,6 +75,7 @@
 | TeammateIdle | Yes (exit 2) | — |
 | ConfigChange | Yes (exit 2) | source |
 | CwdChanged | No | — |
+| DirectoryAdded | No | — |
 | FileChanged | No | filename (basename) |
 | WorktreeCreate | Yes (exit 2) | — |
 | WorktreeRemove | No | — |
@@ -188,6 +189,10 @@
 
 - `old_cwd`: string
 - `new_cwd`: string
+
+### DirectoryAdded
+
+- `directory_path`: string (absolute path of newly added directory)
 
 ### FileChanged
 
@@ -359,7 +364,8 @@
 
 ## Constraints
 
-- Hook output capped at 10,000 characters
+- Hook output capped at 10,000 characters (exceeding saves to file with shortened model preview)
 - All matching hooks run in parallel
 - Identical handlers deduplicated by command/URL
 - JSON-only stdout on exit 0
+- `OTEL_*` exporter variables are removed from all subprocess environments
