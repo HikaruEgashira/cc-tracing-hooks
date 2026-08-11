@@ -1,7 +1,7 @@
 # GitHub Copilot Hooks Specification
 
 > Source: https://docs.github.com/en/copilot/reference/hooks-configuration
-> Snapshot: 2026-08-04
+> Snapshot: 2026-08-11
 
 ## Config Location
 
@@ -71,16 +71,16 @@ Optional regex patterns supported for: `notification`, `permissionRequest`, `pos
 
 | Event | Has Output | Description |
 |-------|-----------|-------------|
-| sessionStart | No | New or resumed session begins |
+| sessionStart | Yes | New or resumed session begins; can inject `additionalContext` |
 | sessionEnd | No | Session completes or terminates |
-| userPromptSubmitted | No | User submits a prompt |
+| userPromptSubmitted | Yes | User submits a prompt; can return `modifiedPrompt` (SDK hooks only) |
 | userPromptTransformed | Yes | After prompt transformation, before model receives it |
 | preToolUse | Yes | Before tool execution (can deny) |
 | postToolUse | Yes | After tool execution (can modify result) |
-| postToolUseFailure | No | After a tool completes with a failure |
+| postToolUseFailure | Yes | After a tool completes with a failure; can return `additionalContext` |
 | errorOccurred | No | Error during execution |
-| agentStop | Yes | Main agent finishes a turn (can block) |
-| notification | No | Async system notification (CLI only) |
+| agentStop | Yes | Main agent finishes a turn (can block; 8-consecutive-block runaway guard) |
+| notification | Yes | Async system notification (CLI only); can return `additionalContext` |
 | permissionRequest | Yes | Before permission service runs (CLI only) |
 | preCompact | No | Context compaction is about to begin |
 | subagentStart | Yes | A subagent is spawned; can inject context (cannot block) |
@@ -97,6 +97,13 @@ Optional regex patterns supported for: `notification`, `permissionRequest`, `pos
   "cwd": "string",
   "source": "new|resume|startup",
   "initialPrompt": "string"
+}
+```
+
+Output:
+```json
+{
+  "additionalContext": "string (optional, injected into session)"
 }
 ```
 
@@ -119,6 +126,13 @@ Optional regex patterns supported for: `notification`, `permissionRequest`, `pos
   "timestamp": "number (Unix ms)",
   "cwd": "string",
   "prompt": "string"
+}
+```
+
+Output (SDK programmatic hooks only; command/HTTP hooks output is dropped):
+```json
+{
+  "modifiedPrompt": "string"
 }
 ```
 
@@ -179,6 +193,13 @@ Output:
   "toolName": "string",
   "toolArgs": "string (JSON-stringified)",
   "error": "string"
+}
+```
+
+Output:
+```json
+{
+  "additionalContext": "string (optional, recovery guidance for the model)"
 }
 ```
 
@@ -267,6 +288,13 @@ Output:
   "message": "string",
   "title": "string (optional)",
   "notification_type": "shell_completed|shell_detached_completed|agent_completed|agent_idle|permission_prompt|elicitation_dialog"
+}
+```
+
+Output:
+```json
+{
+  "additionalContext": "string (optional, injected as user message)"
 }
 ```
 
@@ -383,9 +411,12 @@ Note: only `deny` is processed.
 
 ## Constraints
 
-- Default timeout: 30 seconds
+- Default timeout: 30 seconds (`timeoutSec`; the `timeout` field is a deprecated alias)
 - Multiple hooks of same type execute sequentially
 - Scripts read JSON from stdin
 - `disableAllHooks: true` disables all hooks in a file
 - `transcriptPath` now included in `agentStop`, `subagentStart`, `subagentStop`, `preCompact`
 - `preToolUse` is **fail-closed**: crashes, non-zero exits (other than 2), and timeouts all deny the tool call
+- **Runaway guard**: After 8 consecutive `block` decisions from `agentStop`, the CLI overrides and ends the turn
+- Hook output bounded at **10 MiB** per invocation; `additionalContext` capped at **10 KB** when multiple hooks return it
+- HTTP hooks require HTTPS by default for permission events; HTTP allowed for localhost only with `COPILOT_HOOK_ALLOW_LOCALHOST=1`
