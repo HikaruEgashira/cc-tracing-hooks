@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-08-04
+> Snapshot: 2026-08-11
 
 ## Config Location
 
@@ -64,7 +64,7 @@
 | PostToolUse | Yes (exit 2) | tool_name |
 | PostToolUseFailure | Yes (exit 2) | tool_name |
 | PostToolBatch | Yes (exit 2) | — |
-| Notification | No | notification_type |
+| Notification | No | notification_type: `permission_prompt\|idle_prompt\|auth_success\|elicitation_dialog\|elicitation_complete\|elicitation_response\|agent_needs_input\|agent_completed` |
 | MessageDisplay | No | — |
 | SubagentStart | No | agent_type |
 | SubagentStop | Yes (exit 2) | agent_type |
@@ -75,7 +75,7 @@
 | TeammateIdle | Yes (exit 2) | — |
 | ConfigChange | Yes (exit 2) | source |
 | CwdChanged | No | — |
-| DirectoryAdded | No | — |
+| DirectoryAdded | No | addition method: `slash_command\|register_repo_root` |
 | FileChanged | No | filename (basename) |
 | WorktreeCreate | Yes (exit 2) | — |
 | WorktreeRemove | No | — |
@@ -166,7 +166,7 @@
 
 - `message`: string
 - `title`: string (optional)
-- `notification_type`: `permission_prompt|idle_prompt|auth_success|elicitation_dialog|elicitation_complete|elicitation_response`
+- `notification_type`: `permission_prompt|idle_prompt|auth_success|elicitation_dialog|elicitation_complete|elicitation_response|agent_needs_input|agent_completed`
 - `notification_data`: object (optional)
 
 ### SubagentStart / SubagentStop
@@ -326,6 +326,7 @@
 - `hookSpecificOutput.decision.behavior`: `allow|deny`
 - `hookSpecificOutput.decision.updatedInput`: object
 - `hookSpecificOutput.decision.permissionRules`: array of rule strings
+- `hookSpecificOutput.decision.saveRule`: `{ "rule": "Edit(*.ts)", "mode": "allow" }` (optional, persists rule to settings)
 
 ### PermissionDenied
 
