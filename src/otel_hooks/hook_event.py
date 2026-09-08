@@ -70,6 +70,9 @@ _METRIC_EVENT_MAP: dict[str, EventType] = {
     "MessageDisplay": EventType.SESSION_END,
     # Claude Code new events (2026-08-04 spec sync)
     "DirectoryAdded": EventType.SESSION_END,
+    # Claude Code new events (2026-09-08 spec sync)
+    "PreModelSwitch": EventType.SESSION_END,
+    "PostModelSwitch": EventType.SESSION_END,
     # Copilot new events (2026-05-18 spec sync)
     "agentStop": EventType.SESSION_END,
     "AgentStop": EventType.SESSION_END,

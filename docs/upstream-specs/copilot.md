@@ -1,7 +1,7 @@
 # GitHub Copilot Hooks Specification
 
 > Source: https://docs.github.com/en/copilot/reference/hooks-configuration
-> Snapshot: 2026-08-11
+> Snapshot: 2026-09-08
 
 ## Config Location
 
@@ -37,6 +37,8 @@ Policy hooks cannot be disabled by `disableAllHooks`. Policy files (POSIX) must 
         "bash": "string (script path)",
         "powershell": "string (script path)",
         "command": "string (cross-platform path)",
+        "exec": "string (executable path, no shell)",
+        "args": ["string (exec-form arguments)"],
         "cwd": "string (optional)",
         "env": { "<key>": "<value>" },
         "timeoutSec": 30,
@@ -416,7 +418,7 @@ Note: only `deny` is processed.
 - Scripts read JSON from stdin
 - `disableAllHooks: true` disables all hooks in a file
 - `transcriptPath` now included in `agentStop`, `subagentStart`, `subagentStop`, `preCompact`
-- `preToolUse` is **fail-closed**: crashes, non-zero exits (other than 2), and timeouts all deny the tool call
+- `preToolUse` is **fail-closed** for crashes and non-zero exits (other than 2), which deny the tool call; **timeouts are fail-open** (warning logged, execution continues) even for `preToolUse` and admin policy hooks (updated 2026-09-08)
 - **Runaway guard**: After 8 consecutive `block` decisions from `agentStop`, the CLI overrides and ends the turn
 - Hook output bounded at **10 MiB** per invocation; `additionalContext` capped at **10 KB** when multiple hooks return it
 - HTTP hooks require HTTPS by default for permission events; HTTP allowed for localhost only with `COPILOT_HOOK_ALLOW_LOCALHOST=1`
