@@ -1,7 +1,7 @@
 # Kiro Hooks Specification
 
 > Source: https://kiro.dev/docs/cli/hooks/
-> Snapshot: 2026-07-28
+> Snapshot: 2026-09-08
 
 ## Config Location
 
@@ -29,11 +29,14 @@ otel-hooks writes to `otel-hooks.json` in the relevant directory.
         "prompt": "string (agent type)"
       },
       "timeout": 60,
-      "enabled": true
+      "enabled": true,
+      "confirm": {}
     }
   ]
 }
 ```
+
+`confirm` is an optional field for `Stop` trigger hooks that shows a confirmation prompt before the hook runs (added 2026-09-08).
 
 ## Hook Fields
 
@@ -56,19 +59,19 @@ otel-hooks writes to `otel-hooks.json` in the relevant directory.
 
 ## Hook Events (11 total)
 
-| Trigger | Activation | Matcher Type | Blockable |
-|---------|------------|--------------|-----------|
-| `AgentSpawn` | Agent activates (added 2026-07-28) | N/A | No |
-| `SessionStart` | Session begins | N/A | No |
-| `UserPromptSubmit` | User submits prompt | N/A | Yes |
-| `Stop` | Agent completes turn | N/A | Yes (block decision via `{"decision": "block", "reason": "..."}`) |
-| `PreToolUse` | Before tool executes | Tool name (regex) | Yes |
-| `PostToolUse` | After tool executes | Tool name (regex) | No |
-| `PreTaskExec` | Before spec task starts | N/A | Yes |
-| `PostTaskExec` | After spec task finishes | N/A | No |
-| `PostFileCreate` | File created by agent | File path (regex) | No |
-| `PostFileSave` | File saved by agent | File path (regex) | No |
-| `PostFileDelete` | File deleted by agent | File path (regex) | No |
+| Trigger | Activation | Matcher Type | Blockable | Platform |
+|---------|------------|--------------|-----------|----------|
+| `AgentSpawn` | Agent activates (added 2026-07-28) | N/A | No | CLI only |
+| `SessionStart` | Session begins | N/A | No | IDE only |
+| `UserPromptSubmit` | User submits prompt | N/A | Yes | IDE, CLI |
+| `Stop` | Agent completes turn | N/A | Yes (via JSON `{"decision": "block", "reason": "..."}`) | IDE, CLI |
+| `PreToolUse` | Before tool executes | Tool name (regex) | Yes | IDE, CLI |
+| `PostToolUse` | After tool executes | Tool name (regex) | No | IDE, CLI |
+| `PreTaskExec` | Before spec task starts | N/A | Yes | IDE only |
+| `PostTaskExec` | After spec task finishes | N/A | No | IDE only |
+| `PostFileCreate` | File created by agent | File path (regex) | No | IDE only |
+| `PostFileSave` | File saved by agent | File path (regex) | No | IDE only |
+| `PostFileDelete` | File deleted by agent | File path (regex) | No | IDE only |
 
 ## Common Input Fields (all events)
 

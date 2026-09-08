@@ -477,6 +477,32 @@ class HookPayloadAdapterTest(unittest.TestCase):
         self.assertEqual(event.source, "claude")
         self.assertEqual(event.type, EventType.SESSION_END)
 
+    def test_parse_hook_event_for_claude_pre_model_switch(self) -> None:
+        """PreModelSwitch maps to SESSION_END (new Claude Code event, 2026-09-08 spec sync)."""
+        payload = {
+            "source_tool": "claude",
+            "hook_event_name": "PreModelSwitch",
+            "session_id": "s1",
+            "model": "claude-opus-5",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "claude")
+        self.assertEqual(event.type, EventType.SESSION_END)
+
+    def test_parse_hook_event_for_claude_post_model_switch(self) -> None:
+        """PostModelSwitch maps to SESSION_END (new Claude Code event, 2026-09-08 spec sync)."""
+        payload = {
+            "source_tool": "claude",
+            "hook_event_name": "PostModelSwitch",
+            "session_id": "s1",
+            "model": "claude-sonnet-5",
+        }
+        event = parse_hook_event(payload)
+        self.assertIsNotNone(event)
+        self.assertEqual(event.source, "claude")
+        self.assertEqual(event.type, EventType.SESSION_END)
+
     def test_parse_hook_event_for_copilot_subagent_stop_with_new_fields(self) -> None:
         """subagentStop payload now includes agentId, agentType, response (2026-08-04 spec sync)."""
         payload = {

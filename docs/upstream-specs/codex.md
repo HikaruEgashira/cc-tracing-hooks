@@ -2,7 +2,7 @@
 
 > Source: https://learn.chatgpt.com/docs/config-file/config-reference
 > (Formerly https://developers.openai.com/codex/config-reference — 308 permanent redirect as of 2026-07-21)
-> Snapshot: 2026-08-04
+> Snapshot: 2026-09-08
 
 ## Config Location
 
@@ -53,7 +53,7 @@ Note: Only `command` hook handlers are currently executed; `prompt` and `agent` 
 
 The `additionalContextLimit` parameter (default: 2500 tokens) controls when oversized hook output is saved to disk with a shortened model preview. Setting to `0` passes full output directly to the model.
 
-## Documented Hook Events (11)
+## Documented Hook Events (12)
 
 | Event | Description |
 |-------|-------------|
@@ -68,6 +68,7 @@ The `additionalContextLimit` parameter (default: 2500 tokens) controls when over
 | `SubagentStart` | Spawned agent startup |
 | `SubagentStop` | Spawned agent shutdown |
 | `Stop` | Assistant finishes responding |
+| `Interrupt` | Operation interrupted by user or system (added 2026-09-08) |
 
 ## otel-hooks Integration
 

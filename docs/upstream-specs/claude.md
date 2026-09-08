@@ -1,7 +1,7 @@
 # Claude Code Hooks Specification
 
 > Source: https://code.claude.com/docs/en/hooks
-> Snapshot: 2026-08-11
+> Snapshot: 2026-09-08
 
 ## Config Location
 
@@ -49,7 +49,7 @@
 - `prompt` — LLM prompt (`prompt`, `model`)
 - `agent` — agent invocation (`prompt`, `model`) [experimental]
 
-## Hook Events (31 total)
+## Hook Events (33 total)
 
 | Event | Blockable | Matcher Target |
 |-------|-----------|----------------|
@@ -84,6 +84,8 @@
 | Elicitation | Yes (exit 2) | mcp_server name |
 | ElicitationResult | Yes (exit 2) | mcp_server name |
 | SessionEnd | No | reason: `clear\|resume\|logout\|prompt_input_exit\|bypass_permissions_disabled\|other` |
+| PreModelSwitch | Yes (exit 2) | model name (e.g. `claude-opus-5`, `.*opus.*`) |
+| PostModelSwitch | No | model name |
 
 ## Common Input Fields (all events)
 
